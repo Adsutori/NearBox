@@ -1,11 +1,176 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>InPost Parcel Locker Finder</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: sans-serif;
+            background: #f5f5f5;
+        }
+
+        #header {
+            background: #ffcc00;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        }
+
+        #header h1 {
+            font-size: 1.2rem;
+            color: #1a1a1a;
+        }
+
+        #search-bar {
+            display: flex;
+            gap: 8px;
+        }
+
+        #city-input {
+            padding: 8px 14px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            font-size: 1rem;
+            width: 220px;
+            outline: none;
+            transition: border 0.2s;
+        }
+
+        #city-input:focus {
+            border-color: #ffcc00;
+        }
+
+        #search-btn {
+            padding: 8px 18px;
+            background: #1a1a1a;
+            color: #ffcc00;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        #search-btn:hover {
+            background: #333;
+        }
+
+        #status {
+            padding: 4px 12px;
+            font-size: 0.85rem;
+            color: #555;
+            min-width: 160px;
+        }
+
+        #map {
+            height: calc(100vh - 64px);
+            width: 100%;
+        }
+    </style>
 </head>
 <body>
-    yo
+
+    <div id="header">
+        <h1>📦 InPost Locker Finder</h1>
+        <div id="search-bar">
+            <input type="text" id="city-input" placeholder="Wpisz miasto..." />
+            <button id="search-btn" onclick="fetchPoints()">Szukaj</button>
+        </div>
+        <span id="status"></span>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // 1. Inicjalizacja mapy — centrum Polski, zoom 6
+        const map = L.map('map').setView([52.0, 19.0], 6);
+
+        // 2. Warstwa kafelków — OpenStreetMap (darmowe!)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // 3. Grupa markerów — żeby łatwo je wszystkie usunąć przy nowym wyszukiwaniu
+        let markersLayer = L.layerGroup().addTo(map);
+
+        // 4. Główna funkcja
+        async function fetchPoints() {
+            const city = document.getElementById("city-input").value.trim();
+            const status = document.getElementById("status");
+
+            if (!city) {
+                status.textContent = "⚠️ Wpisz nazwę miasta";
+                return;
+            }
+
+            status.textContent = "⏳ Ładowanie...";
+
+            // Czyścimy poprzednie markery
+            markersLayer.clearLayers();
+
+            try {
+                const res = await fetch(`/api/points/?city=${encodeURIComponent(city)}`);
+
+                if (!res.ok) {
+                    status.textContent = "❌ Błąd serwera";
+                    return;
+                }
+
+                const data = await res.json();
+
+                if (data.length === 0) {
+                    status.textContent = "🔍 Brak wyników";
+                    return;
+                }
+
+                // 5. Dodajemy markery na mapę
+                data.forEach(point => {
+                    if (point.lat && point.lng) {
+                        const marker = L.marker([point.lat, point.lng]);
+
+                        // Popup który pojawia się po kliknięciu w marker
+                        marker.bindPopup(`
+                            <strong>${point.name}</strong><br>
+                            ${point.address}
+                        `);
+
+                        markersLayer.addLayer(marker);
+                    }
+                });
+
+                // 6. Przesuń mapę żeby pokazać wszystkie markery
+                const bounds = markersLayer.getLayers().map(m => m.getLatLng());
+                map.fitBounds(bounds, { padding: [40, 40] });
+
+                status.textContent = `✅ Znaleziono: ${data.length} punktów`;
+
+            } catch (err) {
+                console.error(err);
+                status.textContent = "❌ Błąd połączenia";
+            }
+        }
+
+        // 7. Wyszukiwanie po wciśnięciu Enter
+        document.getElementById("city-input").addEventListener("keydown", function(e) {
+            if (e.key === "Enter") fetchPoints();
+        });
+    </script>
+
 </body>
 </html>
