@@ -28,3 +28,17 @@ def get_points_by_city(city):
         page += 1
 
     return all_points
+
+
+def get_points_by_location(lat, lng, radius=5):
+    url = "https://api-global-points.easypack24.net/v1/points"
+    params = {
+        "relative_point": f"{lat},{lng}",
+        "max_distance": radius,
+        "per_page": 25,
+        "page": 1
+    }
+    response = requests.get(url, params=params, timeout=5)
+    response.raise_for_status()
+    data = response.json()
+    return data.get("items", [])

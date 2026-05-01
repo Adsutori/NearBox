@@ -161,16 +161,105 @@
             placeholder="Wpisz miasto, np. Warszawa"
         />
         <button id="search-btn" onclick="fetchPoints()">🔍 Szukaj</button>
+        <button id="locate-btn" onclick="useMyLocation()">📍 Moja lokalizacja</button>
     </div>
-
+    
     <span id="status"></span>
 </div>
 
 <div id="map"></div>
 
+<!-- Sekcja AI -->
+<div id="ai-section" style="
+    padding: 16px 24px;
+    background: #1a1a1a;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+">
+        <span style="color: #FFD100; font-weight: 700;">🤖 Zapytaj AI:</span>
+        <input
+            id="ai-input"
+            type="text"
+            placeholder="np. paczkomat czynny całą dobę blisko centrum"
+            style="
+                flex: 1;
+                padding: 9px 16px;
+                border-radius: 8px;
+                border: none;
+                font-size: 0.9rem;
+            "
+        />
+        <button onclick="askAI()" style="
+            padding: 9px 20px;
+            background: #FFD100;
+            color: #1a1a1a;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+        ">Zapytaj</button>
+    </div>
+
+    <!-- Odpowiedź AI -->
+    <div id="ai-response" style="
+        display: none;
+        padding: 16px 24px;
+        background: #fffbea;
+        border-left: 4px solid #FFD100;
+        font-size: 0.9rem;
+        white-space: pre-wrap;
+        line-height: 1.6;
+    ">
+</div>
+
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
+
+    function useMyLocation() {
+        const status = document.getElementById("status");
+        status.textContent = "⏳ Szukam Twojej lokalizacji...";
+
+        navigator.geolocation.getCurrentPosition(
+            async (pos) => {
+                const { latitude, longitude } = pos.coords;
+
+                // Przesuń mapę na usera
+                map.setView([latitude, longitude], 13);
+
+                // Marker usera
+                L.marker([latitude, longitude], {
+                    icon: L.divIcon({
+                        html: `<div style="
+                            width: 16px; height: 16px;
+                            background: #4285f4;
+                            border: 3px solid white;
+                            border-radius: 50%;
+                            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+                        "></div>`,
+                        className: "",
+                        iconSize: [16, 16],
+                        iconAnchor: [8, 8]
+                    })
+                }).addTo(map).bindPopup("📍 Twoja lokalizacja");
+
+                // Fetch po współrzędnych
+                const res = await fetch(
+                    `/api/points/?lat=${latitude}&lng=${longitude}`
+                );
+                const data = await res.json();
+
+                renderMarkers(data);
+                status.textContent = `✅ Znaleziono ${data.length} punktów w pobliżu`;
+            },
+            () => {
+                status.textContent = "❌ Brak dostępu do lokalizacji";
+            }
+        );
+    }
+
     // ── 1. INICJALIZACJA MAPY ──
     const map = L.map('map').setView([52.0, 19.0], 6);
 
@@ -320,6 +409,40 @@
     document.getElementById("city-input").addEventListener("keydown", e => {
         if (e.key === "Enter") fetchPoints();
     });
+
+    // Dodaj do bloku <script> w index.html
+    let lastCity = "";  // zapamiętujemy ostatnie miasto
+
+    async function askAI() {
+        const query    = document.getElementById("ai-input").value.trim();
+        const cityInput = document.getElementById("city-input").value.trim();
+        const responseBox = document.getElementById("ai-response");
+
+        if (!query) return;
+        if (!cityInput) {
+            responseBox.style.display = "block";
+            responseBox.textContent   = "⚠️ Najpierw wyszukaj miasto.";
+            return;
+        }
+
+        responseBox.style.display = "block";
+        responseBox.textContent   = "🤖 Bielik myśli...";
+
+        try {
+            const res = await fetch("/api/ai/", {
+                method:  "POST",
+                headers: { "Content-Type": "application/json" },
+                body:    JSON.stringify({ query, city: cityInput })
+            });
+
+            const data = await res.json();
+            responseBox.textContent = data.recommendation || "Brak odpowiedzi.";
+
+        } catch (err) {
+            responseBox.textContent = "❌ Błąd połączenia z AI.";
+        }
+    }
+
 </script>
 
 </body>
