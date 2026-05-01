@@ -7,10 +7,15 @@ def simplify_points(points):
 
     for p in points:
         simplified.append({
-            "name": p.get("name"),
-            "lat": p.get("location", {}).get("latitude"),
-            "lng": p.get("location", {}).get("longitude"),
-            "address": p.get("address", {}).get("line1"),
+            "name":         p.get("name"),
+            "lat":          p.get("location", {}).get("latitude"),
+            "lng":          p.get("location", {}).get("longitude"),
+            "address":      p.get("address", {}).get("line1"),
+            "city":         p.get("address_details", {}).get("city"),
+            "status":       p.get("status"),
+            "opening_hours": p.get("opening_hours"),
+            "image_url":    p.get("image_url"),
+            "location_description": p.get("location_description"),
         })
 
     return simplified
