@@ -6,7 +6,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 let markersLayer = L.layerGroup().addTo(map);
-
+let aiSelectedMarker = null;
 
 // ══════════════════════════════════════════
 //  ANIMACJE
@@ -40,21 +40,61 @@ function hideAIThinking(text) {
     box.className = "";
     box.style.display = "block";
     box.textContent = text;
+
+    highlightAIMarker(text);
 }
+
+function highlightAIMarker(aiText) {
+    // Bardziej agresywny regex — łapie GRM08M, POP-GRO4, WAW01A itp.
+    const match = aiText.match(/\b([A-Z]{2,6}(?:-[A-Z]{1,4})?\d{1,3}[A-Z]{0,2})\b/);
+
+    console.log("[AI HIGHLIGHT] szukam w tekście:", aiText);
+    console.log("[AI HIGHLIGHT] znaleziony kod:", match ? match[1] : "BRAK");
+
+    if (!match) return;
+
+    const targetName = match[1];
+
+    // Resetuj poprzednio wybrany marker
+    if (aiSelectedMarker) {
+        aiSelectedMarker.setIcon(createInpostIcon(aiSelectedMarker.options._status, false));
+        aiSelectedMarker = null;
+    }
+
+    // Debug — wypisz wszystkie nazwy markerów na mapie
+    const allNames = [];
+    markersLayer.eachLayer(m => allNames.push(m.options._name));
+    console.log("[AI HIGHLIGHT] markery na mapie:", allNames);
+
+    // Znajdź marker po nazwie i podświetl go
+    markersLayer.eachLayer(marker => {
+        if (marker.options._name === targetName) {
+            marker.setIcon(createInpostIcon(marker.options._status, true));
+            aiSelectedMarker = marker;
+            map.setView(marker.getLatLng(), 16, { animate: true });
+            marker.openPopup();
+            console.log("[AI HIGHLIGHT] ✅ podświetlono:", targetName);
+        }
+    });
+}
+
 
 
 // ══════════════════════════════════════════
 //  IKONA INPOST
 // ══════════════════════════════════════════
 
-function createInpostIcon(status) {
-    const borderColor = status === "Operating" ? "#ffd402"
+function createInpostIcon(status, isAiSelected = false) {
+    const borderColor = isAiSelected  ? "#22c55e"
+                      : status === "Operating" ? "#ffd402"
                       : status === "Disabled"  ? "#e74c3c"
                       :                          "#95a5a6";
 
+    const animClass = isAiSelected ? "ai-selected-marker" : "";
+
     return L.divIcon({
         html: `
-            <div style="
+            <div class="${animClass}" style="
                 width:36px; height:36px;
                 border-radius:50%;
                 border:3px solid ${borderColor};
@@ -72,6 +112,7 @@ function createInpostIcon(status) {
         popupAnchor: [0, -22]
     });
 }
+
 
 
 // ══════════════════════════════════════════
@@ -166,7 +207,9 @@ async function fetchPoints() {
             if (!point.lat || !point.lng) return;
 
             const marker = L.marker([point.lat, point.lng], {
-                icon: createInpostIcon(point.status)
+                icon: createInpostIcon(point.status),
+                _name:   point.name,
+                _status: point.status
             });
 
             marker.bindPopup(buildPopup(point), {
@@ -185,7 +228,7 @@ async function fetchPoints() {
         status.textContent = `✅ Znaleziono ${data.length} punktów`;
 
     } catch (err) {
-        hideLoading();
+        hideLoading();``
         console.error(err);
         status.textContent = "❌ Błąd połączenia";
     }
@@ -234,7 +277,9 @@ function useMyLocation() {
                     if (!point.lat || !point.lng) return;
 
                     const marker = L.marker([point.lat, point.lng], {
-                        icon: createInpostIcon(point.status)
+                        icon: createInpostIcon(point.status),
+                        _name:   point.name,
+                        _status: point.status
                     });
 
                     marker.bindPopup(buildPopup(point), {
@@ -291,6 +336,7 @@ async function askAI() {
         });
 
         const data = await res.json();
+        console.log("[AI DEBUG] odpowiedź:", data); 
         hideAIThinking(data.recommendation || "Brak odpowiedzi.");
 
     } catch (err) {
