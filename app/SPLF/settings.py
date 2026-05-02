@@ -127,6 +127,12 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 
+
 # OpenAI
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
+
+# Google Maps
+
+GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY")

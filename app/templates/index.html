@@ -163,6 +163,15 @@
         <button id="search-btn" onclick="fetchPoints()">🔍 Szukaj</button>
         <button id="locate-btn" onclick="useMyLocation()">📍 Moja lokalizacja</button>
     </div>
+
+    <div id="filters">
+        <label><input type="checkbox" id="filter-locker"> Tylko paczkomaty</label>
+        <label><input type="checkbox" id="filter-247"> Czynne 24/7</label>
+        <label><input type="checkbox" id="filter-operating" checked> Tylko aktywne</label>
+        <label><input type="checkbox" id="filter-outdoor"> Na zewnątrz</label>
+        <label><input type="checkbox" id="filter-easy-access"> Łatwy dostęp</label>
+    </div>
+
     
     <span id="status"></span>
 </div>
@@ -346,6 +355,16 @@
 
 
     // ── 4. GŁÓWNA FUNKCJA FETCHOWANIA ──
+    function getFilters() {
+        return {
+            only_locker:      document.getElementById("filter-locker").checked,
+            only_247:         document.getElementById("filter-247").checked,
+            only_operating:   document.getElementById("filter-operating").checked,
+            only_outdoor:     document.getElementById("filter-outdoor").checked,
+            only_easy_access: document.getElementById("filter-easy-access").checked,
+        };
+    }
+
     async function fetchPoints() {
         const city   = document.getElementById("city-input").value.trim();
         const status = document.getElementById("status");
@@ -359,7 +378,9 @@
         markersLayer.clearLayers();
 
         try {
-            const res = await fetch(`/api/points/?city=${encodeURIComponent(city)}`);
+            const filters = getFilters();
+            const params  = new URLSearchParams({ city, ...filters });
+            const res     = await fetch(`/api/points/?${params}`);
 
             if (!res.ok) {
                 status.textContent = "❌ Błąd serwera";
@@ -369,13 +390,11 @@
             const data = await res.json();
 
             if (data.length === 0) {
-                status.textContent = "🔍 Brak wyników dla tego miasta";
+                status.textContent = "🔍 Brak wyników (spróbuj zmienić filtry)";
                 return;
             }
 
-            // Dodajemy markery
             const bounds = [];
-
             data.forEach(point => {
                 if (!point.lat || !point.lng) return;
 
@@ -391,7 +410,6 @@
                 bounds.push([point.lat, point.lng]);
             });
 
-            // Dopasuj zoom do wszystkich markerów
             if (bounds.length > 0) {
                 map.fitBounds(bounds, { padding: [40, 40] });
             }
@@ -403,6 +421,7 @@
             status.textContent = "❌ Błąd połączenia";
         }
     }
+
 
 
     // ── 5. ENTER ODPALA WYSZUKIWANIE ──
@@ -426,7 +445,7 @@
         }
 
         responseBox.style.display = "block";
-        responseBox.textContent   = "🤖 Bielik myśli...";
+        responseBox.textContent   = "🤖 ChatGPT myśli...";
 
         try {
             const res = await fetch("/api/ai/", {

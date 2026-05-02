@@ -1,3 +1,5 @@
+# nie uzywane - zostawiam poki co jako backup
+
 def score_point(p):
     score = 0
 
