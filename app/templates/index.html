@@ -7,138 +7,7 @@
     <title>InPost Locker Finder</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #f5f5f5;
-        }
-
-        /* ── HEADER ── */
-        #header {
-            background: #ffd402;
-            padding: 12px 24px;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            z-index: 1000;
-            position: relative;
-        }
-
-        #logo {
-            height: 32px;
-        }
-
-        #search-bar {
-            display: flex;
-            gap: 8px;
-        }
-
-        #city-input {
-            padding: 9px 16px;
-            border: 2px solid transparent;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            width: 240px;
-            outline: none;
-            transition: border 0.2s;
-            background: white;
-        }
-
-        #city-input:focus {
-            border-color: #1a1a1a;
-        }
-
-        #search-btn {
-            padding: 9px 20px;
-            background: #1a1a1a;
-            color: #ffd402;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        #search-btn:hover { background: #333; }
-
-        #status {
-            font-size: 0.85rem;
-            color: #1a1a1a;
-            font-weight: 500;
-            min-width: 180px;
-        }
-
-        /* ── MAPA ── */
-        #map {
-            height: calc(100vh - 58px);
-            width: 100%;
-        }
-
-        /* ── POPUP ── */
-        .popup-wrapper {
-            width: 220px;
-            font-family: 'Segoe UI', sans-serif;
-        }
-
-        .popup-image {
-            width: 100%;
-            height: 120px;
-            object-fit: cover;
-            border-radius: 6px;
-            margin-bottom: 10px;
-            background: #eee;
-        }
-
-        .popup-name {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #1a1a1a;
-            margin-bottom: 4px;
-        }
-
-        .popup-address {
-            font-size: 0.82rem;
-            color: #555;
-            margin-bottom: 8px;
-        }
-
-        .popup-row {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.82rem;
-            margin-bottom: 4px;
-            color: #333;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .badge-operating {
-            background: #d4f7dc;
-            color: #1a7a35;
-        }
-
-        .badge-disabled {
-            background: #fde8e8;
-            color: #c0392b;
-        }
-
-        .badge-other {
-            background: #fff3cd;
-            color: #856404;
-        }
-    </style>
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
 </head>
 <body>
 
@@ -146,323 +15,61 @@
     const INPOST_LOGO_URL = "{% static 'media/img/inpost-logo.png' %}";
 </script>
 
-<div id="header">
-    <!-- Logo InPosta przez SVG inline — nie wymaga żadnych zewnętrznych plików -->
-    <svg id="logo" viewBox="0 0 120 40" xmlns="http://www.w3.org/2000/svg">
-        <rect width="120" height="40" rx="6" fill="#1a1a1a"/>
-        <text x="10" y="27" font-family="Segoe UI, sans-serif"
-              font-size="18" font-weight="700" fill="#ffd402">InPost</text>
-    </svg>
+<div id="app">
 
-    <div id="search-bar">
-        <input
-            type="text"
-            id="city-input"
-            placeholder="Wpisz miasto, np. Warszawa"
-        />
-        <button id="search-btn" onclick="fetchPoints()">🔍 Szukaj</button>
-        <button id="locate-btn" onclick="useMyLocation()">📍 Moja lokalizacja</button>
+    <!-- ── HEADER ── -->
+    <div id="header">
+        <svg viewBox="0 0 120 40" xmlns="http://www.w3.org/2000/svg"
+             style="height:32px; flex-shrink:0;">
+            <rect width="120" height="40" rx="6" fill="#1a1a1a"/>
+            <text x="10" y="27" font-family="Segoe UI, sans-serif"
+                  font-size="18" font-weight="700" fill="#ffd402">InPost</text>
+        </svg>
+
+        <div id="search-bar">
+            <input type="text" id="city-input"
+                   placeholder="Wpisz miasto, np. Warszawa"/>
+            <button class="btn btn-dark" onclick="fetchPoints()">🔍 Szukaj</button>
+            <button class="btn btn-dark" onclick="useMyLocation()">📍 Moja lokalizacja</button>
+        </div>
+
+        <div id="filters">
+            <label><input type="checkbox" id="filter-locker"> Tylko paczkomaty</label>
+            <label><input type="checkbox" id="filter-247"> Czynne 24/7</label>
+            <label><input type="checkbox" id="filter-operating" checked> Tylko aktywne</label>
+            <label><input type="checkbox" id="filter-outdoor"> Na zewnątrz</label>
+            <label><input type="checkbox" id="filter-easy-access"> Łatwy dostęp</label>
+        </div>
+
+        <span id="status"></span>
     </div>
 
-    <div id="filters">
-        <label><input type="checkbox" id="filter-locker"> Tylko paczkomaty</label>
-        <label><input type="checkbox" id="filter-247"> Czynne 24/7</label>
-        <label><input type="checkbox" id="filter-operating" checked> Tylko aktywne</label>
-        <label><input type="checkbox" id="filter-outdoor"> Na zewnątrz</label>
-        <label><input type="checkbox" id="filter-easy-access"> Łatwy dostęp</label>
+    <!-- ── MAPA ── -->
+    <div id="map"></div>
+
+    <!-- ── PANEL AI ── -->
+    <div id="ai-panel">
+        <div id="ai-section">
+            <span id="ai-label">🤖 Zapytaj AI:</span>
+            <input id="ai-input" type="text"
+                   placeholder="np. paczkomat czynny całą dobę blisko centrum"/>
+            <button class="btn btn-yellow" onclick="askAI()">Zapytaj</button>
+        </div>
+        <div id="ai-response"></div>
     </div>
 
-    
-    <span id="status"></span>
+    <!-- ── MODAL ŁADOWANIA ── -->
+    <div id="loading-modal">
+        <div id="loading-box">
+            <div class="spinner"></div>
+            <p id="loading-text">Ładowanie punktów...</p>
+        </div>
+    </div>
+
 </div>
-
-<div id="map"></div>
-
-<!-- Sekcja AI -->
-<div id="ai-section" style="
-    padding: 16px 24px;
-    background: #1a1a1a;
-    display: flex;
-    gap: 10px;
-    align-items: center;
-">
-        <span style="color: #FFD100; font-weight: 700;">🤖 Zapytaj AI:</span>
-        <input
-            id="ai-input"
-            type="text"
-            placeholder="np. paczkomat czynny całą dobę blisko centrum"
-            style="
-                flex: 1;
-                padding: 9px 16px;
-                border-radius: 8px;
-                border: none;
-                font-size: 0.9rem;
-            "
-        />
-        <button onclick="askAI()" style="
-            padding: 9px 20px;
-            background: #FFD100;
-            color: #1a1a1a;
-            border: none;
-            border-radius: 8px;
-            font-weight: 700;
-            cursor: pointer;
-        ">Zapytaj</button>
-    </div>
-
-    <!-- Odpowiedź AI -->
-    <div id="ai-response" style="
-        display: none;
-        padding: 16px 24px;
-        background: #fffbea;
-        border-left: 4px solid #FFD100;
-        font-size: 0.9rem;
-        white-space: pre-wrap;
-        line-height: 1.6;
-    ">
-</div>
-
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<script>
-
-    function useMyLocation() {
-        const status = document.getElementById("status");
-        status.textContent = "⏳ Szukam Twojej lokalizacji...";
-
-        navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-                const { latitude, longitude } = pos.coords;
-
-                // Przesuń mapę na usera
-                map.setView([latitude, longitude], 13);
-
-                // Marker usera
-                L.marker([latitude, longitude], {
-                    icon: L.divIcon({
-                        html: `<div style="
-                            width: 16px; height: 16px;
-                            background: #4285f4;
-                            border: 3px solid white;
-                            border-radius: 50%;
-                            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-                        "></div>`,
-                        className: "",
-                        iconSize: [16, 16],
-                        iconAnchor: [8, 8]
-                    })
-                }).addTo(map).bindPopup("📍 Twoja lokalizacja");
-
-                // Fetch po współrzędnych
-                const res = await fetch(
-                    `/api/points/?lat=${latitude}&lng=${longitude}`
-                );
-                const data = await res.json();
-
-                renderMarkers(data);
-                status.textContent = `✅ Znaleziono ${data.length} punktów w pobliżu`;
-            },
-            () => {
-                status.textContent = "❌ Brak dostępu do lokalizacji";
-            }
-        );
-    }
-
-    // ── 1. INICJALIZACJA MAPY ──
-    const map = L.map('map').setView([52.0, 19.0], 6);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>'
-    }).addTo(map);
-
-    let markersLayer = L.layerGroup().addTo(map);
-
-
-    // ── 2. WŁASNA IKONA W KOLORACH INPOSTA ──
-    // Rysujemy ikonę jako SVG — zero zewnętrznych plików, działa zawsze
-    function createInpostIcon(status) {
-
-        const borderColor = status === "Operating" ? "#ffd402"
-                        : status === "Disabled"  ? "#e74c3c"
-                        :                          "#95a5a6";
-
-        return L.divIcon({
-            html: `
-                <div style="
-                    width: 36px;
-                    height: 36px;
-                    border-radius: 50%;
-                    border: 3px solid ${borderColor};
-                    background: #ffd402;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-                    overflow: hidden;
-                ">
-                    <img src="${INPOST_LOGO_URL}"
-                        style="width: 26px; height: 26px; object-fit: contain;">
-                </div>`,
-            className: "",
-            iconSize:   [36, 36],
-            iconAnchor: [18, 18],
-            popupAnchor:[0, -22]
-        });
-    }
-
-
-
-    // ── 3. BUDOWANIE POPUPU ──
-    function buildPopup(point) {
-
-        // Badge statusu
-        const badgeClass = point.status === "Operating" ? "badge-operating"
-                         : point.status === "Disabled"  ? "badge-disabled"
-                         :                                "badge-other";
-
-        const statusLabel = point.status === "Operating" ? "✅ Działa"
-                          : point.status === "Disabled"  ? "❌ Wyłączony"
-                          :                                `⚠️ ${point.status}`;
-
-        // Zdjęcie — jeśli API je zwróciło
-        const imageHtml = point.image_url
-            ? `<img class="popup-image" src="${point.image_url}"
-                    alt="${point.name}"
-                    onerror="this.style.display='none'">`
-            : "";
-
-        // Opis lokalizacji — np. "Przy wejściu do sklepu"
-        const descHtml = point.location_description
-            ? `<div class="popup-row">📍 ${point.location_description}</div>`
-            : "";
-
-        return `
-        <div class="popup-wrapper">
-            ${imageHtml}
-            <div class="popup-name">${point.name}</div>
-            <div class="popup-address">${point.address || ""}, ${point.city || ""}</div>
-
-            <div class="popup-row">
-                <span class="badge ${badgeClass}">${statusLabel}</span>
-            </div>
-
-            <div class="popup-row">🕐 ${point.opening_hours || "Brak danych"}</div>
-
-            ${descHtml}
-        </div>`;
-    }
-
-
-    // ── 4. GŁÓWNA FUNKCJA FETCHOWANIA ──
-    function getFilters() {
-        return {
-            only_locker:      document.getElementById("filter-locker").checked,
-            only_247:         document.getElementById("filter-247").checked,
-            only_operating:   document.getElementById("filter-operating").checked,
-            only_outdoor:     document.getElementById("filter-outdoor").checked,
-            only_easy_access: document.getElementById("filter-easy-access").checked,
-        };
-    }
-
-    async function fetchPoints() {
-        const city   = document.getElementById("city-input").value.trim();
-        const status = document.getElementById("status");
-
-        if (!city) {
-            status.textContent = "⚠️ Wpisz nazwę miasta";
-            return;
-        }
-
-        status.textContent = "⏳ Ładowanie...";
-        markersLayer.clearLayers();
-
-        try {
-            const filters = getFilters();
-            const params  = new URLSearchParams({ city, ...filters });
-            const res     = await fetch(`/api/points/?${params}`);
-
-            if (!res.ok) {
-                status.textContent = "❌ Błąd serwera";
-                return;
-            }
-
-            const data = await res.json();
-
-            if (data.length === 0) {
-                status.textContent = "🔍 Brak wyników (spróbuj zmienić filtry)";
-                return;
-            }
-
-            const bounds = [];
-            data.forEach(point => {
-                if (!point.lat || !point.lng) return;
-
-                const icon   = createInpostIcon(point.status);
-                const marker = L.marker([point.lat, point.lng], { icon });
-
-                marker.bindPopup(buildPopup(point), {
-                    maxWidth: 240,
-                    className: "inpost-popup"
-                });
-
-                markersLayer.addLayer(marker);
-                bounds.push([point.lat, point.lng]);
-            });
-
-            if (bounds.length > 0) {
-                map.fitBounds(bounds, { padding: [40, 40] });
-            }
-
-            status.textContent = `✅ Znaleziono ${data.length} punktów`;
-
-        } catch (err) {
-            console.error(err);
-            status.textContent = "❌ Błąd połączenia";
-        }
-    }
-
-
-
-    // ── 5. ENTER ODPALA WYSZUKIWANIE ──
-    document.getElementById("city-input").addEventListener("keydown", e => {
-        if (e.key === "Enter") fetchPoints();
-    });
-
-    // Dodaj do bloku <script> w index.html
-    let lastCity = "";  // zapamiętujemy ostatnie miasto
-
-    async function askAI() {
-        const query    = document.getElementById("ai-input").value.trim();
-        const cityInput = document.getElementById("city-input").value.trim();
-        const responseBox = document.getElementById("ai-response");
-
-        if (!query) return;
-        if (!cityInput) {
-            responseBox.style.display = "block";
-            responseBox.textContent   = "⚠️ Najpierw wyszukaj miasto.";
-            return;
-        }
-
-        responseBox.style.display = "block";
-        responseBox.textContent   = "🤖 ChatGPT myśli...";
-
-        try {
-            const res = await fetch("/api/ai/", {
-                method:  "POST",
-                headers: { "Content-Type": "application/json" },
-                body:    JSON.stringify({ query, city: cityInput })
-            });
-
-            const data = await res.json();
-            responseBox.textContent = data.recommendation || "Brak odpowiedzi.";
-
-        } catch (err) {
-            responseBox.textContent = "❌ Błąd połączenia z AI.";
-        }
-    }
-
-</script>
+<script src="{% static 'js/main.js' %}"></script>
 
 </body>
 </html>
