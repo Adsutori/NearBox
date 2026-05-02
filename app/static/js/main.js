@@ -5,15 +5,15 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>'
 }).addTo(map);
 
-let markersLayer = L.layerGroup().addTo(map);
+let markersLayer    = L.layerGroup().addTo(map);
 let aiSelectedMarker = null;
 
+
 // ══════════════════════════════════════════
-//  ANIMACJE
+//  LOADING MODAL
 // ══════════════════════════════════════════
 
-// ── LOADING MODAL ──
-function showLoading(text = "Ładowanie punktów...") {
+function showLoading(text = "Ładowanie punktów…") {
     document.getElementById("loading-text").textContent = text;
     document.getElementById("loading-modal").classList.add("active");
 }
@@ -23,12 +23,15 @@ function hideLoading() {
 }
 
 
-// ── AI THINKING — dymek z kropkami ──
+// ══════════════════════════════════════════
+//  AI THINKING
+// ══════════════════════════════════════════
+
 function showAIThinking() {
     const box = document.getElementById("ai-response");
     box.className = "thinking";
     box.innerHTML = `
-        <span class="thinking-label">AI myśli...</span>
+        <span class="thinking-label">AI myśli…</span>
         <div class="typing-bubble">
             <span></span><span></span><span></span>
         </div>`;
@@ -40,33 +43,27 @@ function hideAIThinking(text) {
     box.className = "";
     box.style.display = "block";
     box.textContent = text;
-
     highlightAIMarker(text);
 }
 
+
+// ══════════════════════════════════════════
+//  AI HIGHLIGHT MARKER
+// ══════════════════════════════════════════
+
 function highlightAIMarker(aiText) {
-    // Bardziej agresywny regex — łapie GRM08M, POP-GRO4, WAW01A itp.
     const match = aiText.match(/\b([A-Z]{2,6}(?:-[A-Z]{1,4})?\d{1,3}[A-Z]{0,2})\b/);
 
-    console.log("[AI HIGHLIGHT] szukam w tekście:", aiText);
-    console.log("[AI HIGHLIGHT] znaleziony kod:", match ? match[1] : "BRAK");
-
+    console.log("[AI HIGHLIGHT] kod:", match ? match[1] : "BRAK");
     if (!match) return;
 
     const targetName = match[1];
 
-    // Resetuj poprzednio wybrany marker
     if (aiSelectedMarker) {
         aiSelectedMarker.setIcon(createInpostIcon(aiSelectedMarker.options._status, false));
         aiSelectedMarker = null;
     }
 
-    // Debug — wypisz wszystkie nazwy markerów na mapie
-    const allNames = [];
-    markersLayer.eachLayer(m => allNames.push(m.options._name));
-    console.log("[AI HIGHLIGHT] markery na mapie:", allNames);
-
-    // Znajdź marker po nazwie i podświetl go
     markersLayer.eachLayer(marker => {
         if (marker.options._name === targetName) {
             marker.setIcon(createInpostIcon(marker.options._status, true));
@@ -79,13 +76,12 @@ function highlightAIMarker(aiText) {
 }
 
 
-
 // ══════════════════════════════════════════
 //  IKONA INPOST
 // ══════════════════════════════════════════
 
 function createInpostIcon(status, isAiSelected = false) {
-    const borderColor = isAiSelected  ? "#22c55e"
+    const borderColor = isAiSelected          ? "#22c55e"
                       : status === "Operating" ? "#ffd402"
                       : status === "Disabled"  ? "#e74c3c"
                       :                          "#95a5a6";
@@ -100,7 +96,7 @@ function createInpostIcon(status, isAiSelected = false) {
                 border:3px solid ${borderColor};
                 background:#ffd402;
                 display:flex; align-items:center; justify-content:center;
-                box-shadow:0 2px 6px rgba(0,0,0,0.3);
+                box-shadow:0 2px 6px rgba(0,0,0,0.25);
                 overflow:hidden;
             ">
                 <img src="${INPOST_LOGO_URL}"
@@ -114,19 +110,53 @@ function createInpostIcon(status, isAiSelected = false) {
 }
 
 
+// ══════════════════════════════════════════
+//  POPUP  (Lucide SVG zamiast emoji)
+// ══════════════════════════════════════════
 
-// ══════════════════════════════════════════
-//  POPUP
-// ══════════════════════════════════════════
+// Mini helper — inline SVG z Lucide (nie wymaga biblioteki w popupie)
+const ICONS = {
+    clock: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>`,
+    mapPin: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+               <path d="M20 10c0 6-8 13-8 13s-8-7-8-13a8 8 0 0 1 16 0Z"/>
+               <circle cx="12" cy="10" r="3"/>
+             </svg>`,
+    check: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 6 9 17l-5-5"/>
+            </svg>`,
+    x:     `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>`,
+    alert: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>`,
+};
 
 function buildPopup(point) {
-    const badgeClass = point.status === "Operating" ? "badge-operating"
-                     : point.status === "Disabled"  ? "badge-disabled"
-                     :                                "badge-other";
+    const badgeClass  = point.status === "Operating" ? "badge-operating"
+                      : point.status === "Disabled"  ? "badge-disabled"
+                      :                                "badge-other";
 
-    const statusLabel = point.status === "Operating" ? "✅ Działa"
-                      : point.status === "Disabled"  ? "❌ Wyłączony"
-                      :                                `⚠️ ${point.status}`;
+    const statusIcon  = point.status === "Operating" ? ICONS.check
+                      : point.status === "Disabled"  ? ICONS.x
+                      :                                ICONS.alert;
+
+    const statusLabel = point.status === "Operating" ? "Działa"
+                      : point.status === "Disabled"  ? "Wyłączony"
+                      :                                point.status;
 
     const imageHtml = point.image_url
         ? `<img class="popup-image" src="${point.image_url}"
@@ -134,7 +164,7 @@ function buildPopup(point) {
         : "";
 
     const descHtml = point.location_description
-        ? `<div class="popup-row">📍 ${point.location_description}</div>`
+        ? `<div class="popup-row">${ICONS.mapPin} ${point.location_description}</div>`
         : "";
 
     return `
@@ -143,9 +173,9 @@ function buildPopup(point) {
             <div class="popup-name">${point.name}</div>
             <div class="popup-address">${point.address || ""}, ${point.city || ""}</div>
             <div class="popup-row">
-                <span class="badge ${badgeClass}">${statusLabel}</span>
+                <span class="badge ${badgeClass}">${statusIcon} ${statusLabel}</span>
             </div>
-            <div class="popup-row">🕐 ${point.opening_hours || "Brak danych"}</div>
+            <div class="popup-row">${ICONS.clock} ${point.opening_hours || "Brak danych"}</div>
             ${descHtml}
         </div>`;
 }
@@ -175,30 +205,26 @@ async function fetchPoints() {
     const status = document.getElementById("status");
 
     if (!city) {
-        status.textContent = "⚠️ Wpisz nazwę miasta";
+        status.textContent = "Wpisz nazwę miasta";
         return;
     }
 
     status.textContent = "";
     markersLayer.clearLayers();
-    showLoading("Szukam paczkomatów...");
+    showLoading("Szukam paczkomatów…");
 
     try {
-        const filters = getFilters();
-        const params  = new URLSearchParams({ city, ...filters });
-        const res     = await fetch(`/api/points/?${params}`);
+        const params = new URLSearchParams({ city, ...getFilters() });
+        const res    = await fetch(`/api/points/?${params}`);
 
         hideLoading();
 
-        if (!res.ok) {
-            status.textContent = "❌ Błąd serwera";
-            return;
-        }
+        if (!res.ok) { status.textContent = "Błąd serwera"; return; }
 
         const data = await res.json();
 
         if (data.length === 0) {
-            status.textContent = "🔍 Brak wyników (zmień filtry)";
+            status.textContent = "Brak wyników — zmień filtry";
             return;
         }
 
@@ -207,30 +233,27 @@ async function fetchPoints() {
             if (!point.lat || !point.lng) return;
 
             const marker = L.marker([point.lat, point.lng], {
-                icon: createInpostIcon(point.status),
+                icon:    createInpostIcon(point.status),
                 _name:   point.name,
                 _status: point.status
             });
 
             marker.bindPopup(buildPopup(point), {
-                maxWidth: 240,
-                className: "inpost-popup"
+                maxWidth: 240, className: "inpost-popup"
             });
 
             markersLayer.addLayer(marker);
             bounds.push([point.lat, point.lng]);
         });
 
-        if (bounds.length > 0) {
-            map.fitBounds(bounds, { padding: [40, 40] });
-        }
+        if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
 
-        status.textContent = `✅ Znaleziono ${data.length} punktów`;
+        status.textContent = `Znaleziono ${data.length} punktów`;
 
     } catch (err) {
-        hideLoading();``
+        hideLoading();
         console.error(err);
-        status.textContent = "❌ Błąd połączenia";
+        status.textContent = "Błąd połączenia";
     }
 }
 
@@ -241,29 +264,24 @@ async function fetchPoints() {
 
 function useMyLocation() {
     const status = document.getElementById("status");
-
-    showLoading("Szukam Twojej lokalizacji...");
+    showLoading("Szukam Twojej lokalizacji…");
 
     navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-            const { latitude, longitude } = pos.coords;
-
+        async ({ coords: { latitude, longitude } }) => {
             map.setView([latitude, longitude], 13);
 
             L.marker([latitude, longitude], {
                 icon: L.divIcon({
                     html: `<div style="
-                        width:16px; height:16px;
+                        width:14px; height:14px;
                         background:#4285f4;
-                        border:3px solid white;
+                        border:2.5px solid white;
                         border-radius:50%;
                         box-shadow:0 2px 6px rgba(0,0,0,0.4);
                     "></div>`,
-                    className:  "",
-                    iconSize:   [16, 16],
-                    iconAnchor: [8, 8]
+                    className: "", iconSize: [14,14], iconAnchor: [7,7]
                 })
-            }).addTo(map).bindPopup("📍 Twoja lokalizacja");
+            }).addTo(map).bindPopup("Twoja lokalizacja");
 
             try {
                 const res  = await fetch(`/api/points/?lat=${latitude}&lng=${longitude}`);
@@ -271,41 +289,32 @@ function useMyLocation() {
 
                 hideLoading();
 
-                // renderMarkers zamiast fetchPoints — dane już mamy
                 const bounds = [];
                 data.forEach(point => {
                     if (!point.lat || !point.lng) return;
-
                     const marker = L.marker([point.lat, point.lng], {
                         icon: createInpostIcon(point.status),
-                        _name:   point.name,
-                        _status: point.status
+                        _name: point.name, _status: point.status
                     });
-
                     marker.bindPopup(buildPopup(point), {
-                        maxWidth: 240,
-                        className: "inpost-popup"
+                        maxWidth: 240, className: "inpost-popup"
                     });
-
                     markersLayer.addLayer(marker);
                     bounds.push([point.lat, point.lng]);
                 });
 
-                if (bounds.length > 0) {
-                    map.fitBounds(bounds, { padding: [40, 40] });
-                }
-
-                status.textContent = `✅ Znaleziono ${data.length} punktów w pobliżu`;
+                if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
+                status.textContent = `Znaleziono ${data.length} punktów w pobliżu`;
 
             } catch (err) {
                 hideLoading();
                 console.error(err);
-                status.textContent = "❌ Błąd połączenia";
+                status.textContent = "Błąd połączenia";
             }
         },
         () => {
             hideLoading();
-            status.textContent = "❌ Brak dostępu do lokalizacji";
+            status.textContent = "Brak dostępu do lokalizacji";
         }
     );
 }
@@ -322,25 +331,24 @@ async function askAI() {
     if (!query) return;
 
     if (!cityInput) {
-        hideAIThinking("⚠️ Najpierw wyszukaj miasto.");
+        hideAIThinking("Najpierw wyszukaj miasto.");
         return;
     }
 
     showAIThinking();
 
     try {
-        const res = await fetch("/api/ai/", {
+        const res  = await fetch("/api/ai/", {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
             body:    JSON.stringify({ query, city: cityInput })
         });
-
         const data = await res.json();
-        console.log("[AI DEBUG] odpowiedź:", data); 
+        console.log("[AI DEBUG]", data);
         hideAIThinking(data.recommendation || "Brak odpowiedzi.");
 
     } catch (err) {
-        hideAIThinking("❌ Błąd połączenia z AI.");
+        hideAIThinking("Błąd połączenia z AI.");
     }
 }
 
@@ -353,7 +361,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("city-input").addEventListener("keydown", e => {
         if (e.key === "Enter") fetchPoints();
     });
-
     document.getElementById("ai-input").addEventListener("keydown", e => {
         if (e.key === "Enter") askAI();
     });

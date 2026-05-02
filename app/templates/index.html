@@ -4,10 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InPost Locker Finder</title>
+    <title>InPost Finder</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 </head>
 <body>
 
@@ -18,31 +21,66 @@
 <div id="app">
 
     <!-- ── HEADER ── -->
-    <div id="header">
-        <svg viewBox="0 0 120 40" xmlns="http://www.w3.org/2000/svg"
-             style="height:32px; flex-shrink:0;">
-            <rect width="120" height="40" rx="6" fill="#1a1a1a"/>
-            <text x="10" y="27" font-family="Segoe UI, sans-serif"
-                  font-size="18" font-weight="700" fill="#ffd402">InPost</text>
-        </svg>
+    <header id="header">
 
+        <!-- Logo -->
+        <div id="logo">
+            <svg viewBox="0 0 90 30" xmlns="http://www.w3.org/2000/svg" style="height:26px;">
+                <rect width="90" height="30" rx="5" fill="#1a1a1a"/>
+                <text x="8" y="21" font-family="Segoe UI,sans-serif"
+                      font-size="14" font-weight="700" fill="#ffd402">InPost</text>
+            </svg>
+        </div>
+
+        <!-- Search -->
         <div id="search-bar">
-            <input type="text" id="city-input"
-                   placeholder="Wpisz miasto, np. Warszawa"/>
-            <button class="btn btn-dark" onclick="fetchPoints()">🔍 Szukaj</button>
-            <button class="btn btn-dark" onclick="useMyLocation()">📍 Moja lokalizacja</button>
+            <div class="input-wrapper">
+                <i data-lucide="search" class="input-icon"></i>
+                <input type="text" id="city-input" placeholder="Wpisz miasto…"/>
+            </div>
+            <button class="btn btn-dark" onclick="fetchPoints()">
+                <i data-lucide="search"></i>
+                <span>Szukaj</span>
+            </button>
+            <button class="btn btn-ghost" onclick="useMyLocation()">
+                <i data-lucide="locate-fixed"></i>
+                <span>Moja lokalizacja</span>
+            </button>
         </div>
 
+        <!-- Filters -->
         <div id="filters">
-            <label><input type="checkbox" id="filter-locker"> Tylko paczkomaty</label>
-            <label><input type="checkbox" id="filter-247"> Czynne 24/7</label>
-            <label><input type="checkbox" id="filter-operating" checked> Tylko aktywne</label>
-            <label><input type="checkbox" id="filter-outdoor"> Na zewnątrz</label>
-            <label><input type="checkbox" id="filter-easy-access"> Łatwy dostęp</label>
+            <label class="chip">
+                <input type="checkbox" id="filter-locker">
+                <i data-lucide="package"></i>
+                <span>Paczkomaty</span>
+            </label>
+            <label class="chip">
+                <input type="checkbox" id="filter-247">
+                <i data-lucide="clock"></i>
+                <span>24/7</span>
+            </label>
+            <label class="chip">
+                <input type="checkbox" id="filter-operating" checked>
+                <i data-lucide="check-circle"></i>
+                <span>Aktywne</span>
+            </label>
+            <label class="chip">
+                <input type="checkbox" id="filter-outdoor">
+                <i data-lucide="tree-pine"></i>
+                <span>Na zewnątrz</span>
+            </label>
+            <label class="chip">
+                <input type="checkbox" id="filter-easy-access">
+                <i data-lucide="accessibility"></i>
+                <span>Łatwy dostęp</span>
+            </label>
         </div>
 
-        <span id="status"></span>
-    </div>
+        <!-- Status -->
+        <div id="status"></div>
+
+    </header>
 
     <!-- ── MAPA ── -->
     <div id="map"></div>
@@ -50,10 +88,19 @@
     <!-- ── PANEL AI ── -->
     <div id="ai-panel">
         <div id="ai-section">
-            <span id="ai-label">🤖 Zapytaj AI:</span>
-            <input id="ai-input" type="text"
-                   placeholder="np. paczkomat czynny całą dobę blisko centrum"/>
-            <button class="btn btn-yellow" onclick="askAI()">Zapytaj</button>
+            <div id="ai-label">
+                <i data-lucide="bot"></i>
+                <span>Zapytaj AI</span>
+            </div>
+            <div class="input-wrapper dark">
+                <i data-lucide="message-circle" class="input-icon"></i>
+                <input id="ai-input" type="text"
+                       placeholder="np. paczkomat czynny całą dobę blisko centrum"/>
+            </div>
+            <button class="btn btn-yellow" onclick="askAI()">
+                <i data-lucide="send"></i>
+                <span>Wyślij</span>
+            </button>
         </div>
         <div id="ai-response"></div>
     </div>
@@ -62,7 +109,7 @@
     <div id="loading-modal">
         <div id="loading-box">
             <div class="spinner"></div>
-            <p id="loading-text">Ładowanie punktów...</p>
+            <p id="loading-text">Ładowanie punktów…</p>
         </div>
     </div>
 
@@ -70,6 +117,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="{% static 'js/main.js' %}"></script>
+<script>lucide.createIcons();</script>
 
 </body>
 </html>

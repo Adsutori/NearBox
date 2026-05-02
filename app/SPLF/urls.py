@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("", views.index, name="index"),
+    path("", views.landing, name="landing"),
+    path("map/", views.index, name="index"),
     path("api/", include("points.urls")),
 ]

@@ -1,0 +1,220 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InPost Finder</title>
+
+    <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+    <svg viewBox="0 0 90 30" xmlns="http://www.w3.org/2000/svg" style="height:24px;">
+        <rect width="90" height="30" rx="5" fill="#ffd402"/>
+        <text x="8" y="21" font-family="Segoe UI,sans-serif"
+              font-size="14" font-weight="700" fill="#1a1a1a">InPost</text>
+    </svg>
+</nav>
+
+<!-- ── HERO ── -->
+<section id="hero">
+
+    <!-- Tło: siatka + gradient -->
+    <div class="grid-bg"></div>
+    <div class="hero-glow"></div>
+
+    <!-- Floating badges -->
+    <div class="badge-float badge-1">
+        <i data-lucide="package"></i> GRM08M · Działa
+    </div>
+    <div class="badge-float badge-2">
+        <i data-lucide="clock"></i> Czynny 24/7
+    </div>
+    <div class="badge-float badge-3">
+        <i data-lucide="bot"></i> AI · 0.04 km
+    </div>
+
+    <!-- Główna treść -->
+    <div class="hero-content">
+        <div class="hero-eyebrow">
+            <span class="dot-live"></span>
+            Interaktywna mapa paczkomatów
+        </div>
+
+        <h1>
+            Znajdź paczkomat<br>
+            <span class="highlight">szybciej niż kiedykolwiek</span>
+        </h1>
+
+        <p class="hero-sub">
+            Pełna mapa paczkomatów InPost z filtrowaniem
+            i rekomendacjami AI. Wpisz miasto — reszta dzieje się sama.
+        </p>
+
+        <div class="hero-actions">
+            <a href="/map/" class="btn-primary">
+                <i data-lucide="map"></i>
+                <span>Otwórz mapę</span>
+            </a>
+            <a href="#features" class="btn-secondary">
+                <i data-lucide="arrow-down"></i>
+                <span>Dowiedz się więcej</span>
+            </a>
+        </div>
+    </div>
+
+
+    <!-- Mockup mapy -->
+    <div class="hero-mockup">
+        <div class="mockup-bar">
+            <span class="dot r"></span>
+            <span class="dot y"></span>
+            <span class="dot g"></span>
+            <span class="mockup-url">inpost-finder.app/map</span>
+        </div>
+        <div class="mockup-body">
+            <!-- Symulacja mapy z markerami -->
+            <div class="mock-map">
+                <div class="mock-tile"></div>
+                <div class="mock-tile dark"></div>
+                <div class="mock-tile"></div>
+                <div class="mock-tile dark"></div>
+                <div class="mock-tile"></div>
+                <div class="mock-tile dark"></div>
+                <div class="mock-tile"></div>
+                <div class="mock-tile dark"></div>
+                <div class="mock-tile"></div>
+
+                <!-- Markery -->
+                <div class="mock-marker m1">
+                    <div class="mock-pin"></div>
+                </div>
+                <div class="mock-marker m2">
+                    <div class="mock-pin"></div>
+                </div>
+                <div class="mock-marker m3 selected">
+                    <div class="mock-pin"></div>
+                    <div class="mock-pulse"></div>
+                </div>
+                <div class="mock-marker m4">
+                    <div class="mock-pin"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</section>
+
+<!-- ── FEATURES ── -->
+<section id="features">
+
+    <div class="section-label">Co potrafi</div>
+    <h2>Trzy rzeczy. Zrobione dobrze.</h2>
+
+    <div class="features-grid">
+
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i data-lucide="map-pin"></i>
+            </div>
+            <h3>Mapa w czasie rzeczywistym</h3>
+            <p>Wszystkie paczkomaty InPost na interaktywnej mapie Leaflet.
+               Kliknij marker — zobaczysz zdjęcie, adres i godziny otwarcia.</p>
+        </div>
+
+        <div class="feature-card">
+            <div class="feature-icon">
+                <i data-lucide="sliders-horizontal"></i>
+            </div>
+            <h3>Inteligentne filtry</h3>
+            <p>Filtruj po typie, dostępności 24/7, statusie działania
+               i łatwości dostępu. Wyniki aktualizują się natychmiast.</p>
+        </div>
+
+        <div class="feature-card featured">
+            <div class="feature-badge">AI</div>
+            <div class="feature-icon">
+                <i data-lucide="bot"></i>
+            </div>
+            <h3>Rekomendacje AI</h3>
+            <p>Zapytaj naturalnym językiem — <em>"paczkomat blisko Aldi"</em>.
+               AI wskaże najlepszy wynik i podświetli go na mapie.</p>
+        </div>
+
+    </div>
+
+</section>
+
+<!-- ── STACK ── -->
+<section id="stack">
+    <div class="section-label">Stack technologiczny</div>
+    <h2>Zbudowane solidnie.</h2>
+
+    <div class="stack-list">
+        <div class="stack-item">
+            <span class="stack-name">Django</span>
+            <span class="stack-desc">Backend + REST API</span>
+        </div>
+        <div class="stack-divider"></div>
+        <div class="stack-item">
+            <span class="stack-name">Leaflet.js</span>
+            <span class="stack-desc">Interaktywna mapa</span>
+        </div>
+        <div class="stack-divider"></div>
+        <div class="stack-item">
+            <span class="stack-name">InPost API</span>
+            <span class="stack-desc">Dane paczkomatów</span>
+        </div>
+        <div class="stack-divider"></div>
+        <div class="stack-item">
+            <span class="stack-name">Gemini AI</span>
+            <span class="stack-desc">Rekomendacje</span>
+        </div>
+        <div class="stack-divider"></div>
+        <div class="stack-item">
+            <span class="stack-name">Docker</span>
+            <span class="stack-desc">Konteneryzacja</span>
+        </div>
+    </div>
+</section>
+
+<!-- ── CTA ── -->
+<section id="cta">
+    <div class="cta-glow"></div>
+    <h2>Gotowy?</h2>
+    <p>Otwórz aplikację i znajdź paczkomat w kilka sekund.</p>
+    <a href="/map/" class="btn-primary large">
+        <i data-lucide="map"></i>
+        Otwórz mapę
+    </a>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+    <span class="footer-sep">·</span>
+    <span>Zbudowany z <i data-lucide="heart" style="width:12px;height:12px;color:#ffd402;display:inline;vertical-align:middle;"></i> i Pythonie</span>
+</footer>
+
+<script>
+    lucide.createIcons();
+
+    // ── Animacja wejścia sekcji (IntersectionObserver) ──
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+            if (e.isIntersecting) {
+                e.target.classList.add("visible");
+                observer.unobserve(e.target);
+            }
+        });
+    }, { threshold: 0.15 });
+
+    document.querySelectorAll(".feature-card, .stack-item, .hero-content, .hero-mockup")
+            .forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
