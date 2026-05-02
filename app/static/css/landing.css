@@ -608,3 +608,10 @@ footer {
     .stack-item    { padding: 10px 0; }
     footer         { flex-wrap: wrap; }
 }
+
+.nav-logo {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--yellow);
+    letter-spacing: -0.03em;
+}
