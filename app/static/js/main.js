@@ -1,12 +1,74 @@
+// ══════════════════════════════════════════
+//  THEME — init przed mapą
+// ══════════════════════════════════════════
+
+const currentTheme = localStorage.getItem('theme') || 'dark';
+document.documentElement.setAttribute('data-theme', currentTheme);
+
 // ── INICJALIZACJA MAPY ──
 const map = L.map('map').setView([52.0, 19.0], 6);
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>'
-}).addTo(map);
+const tileDark = L.tileLayer(
+    'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    {
+        attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> © <a href="https://carto.com">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+    }
+);
 
-let markersLayer    = L.layerGroup().addTo(map);
+const tileLight = L.tileLayer(
+    'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    {
+        attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> © <a href="https://carto.com">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+    }
+);
+
+// Dodaj właściwy tile layer od razu
+if (currentTheme === 'light') {
+    tileLight.addTo(map);
+} else {
+    tileDark.addTo(map);
+}
+
+let markersLayer     = L.layerGroup().addTo(map);
 let aiSelectedMarker = null;
+
+
+// ══════════════════════════════════════════
+//  THEME TOGGLE
+// ══════════════════════════════════════════
+
+function toggleTheme() {
+    const html    = document.documentElement;
+    const current = html.getAttribute('data-theme');
+    const next    = current === 'dark' ? 'light' : 'dark';
+
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+
+    if (next === 'light') {
+        tileDark.remove();
+        tileLight.addTo(map);
+    } else {
+        tileLight.remove();
+        tileDark.addTo(map);
+    }
+}
+
+// Podpięcie przycisku — po załadowaniu DOM
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+
+    document.getElementById('city-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') fetchPoints();
+    });
+    document.getElementById('ai-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') askAI();
+    });
+});
 
 
 // ══════════════════════════════════════════
@@ -81,10 +143,10 @@ function highlightAIMarker(aiText) {
 // ══════════════════════════════════════════
 
 function createInpostIcon(status, isAiSelected = false) {
-    const borderColor = isAiSelected          ? "#22c55e"
-                      : status === "Operating" ? "#ffd402"
-                      : status === "Disabled"  ? "#e74c3c"
-                      :                          "#95a5a6";
+    const borderColor = isAiSelected           ? "#22c55e"
+                      : status === "Operating"  ? "#ffd402"
+                      : status === "Disabled"   ? "#e74c3c"
+                      :                           "#95a5a6";
 
     const animClass = isAiSelected ? "ai-selected-marker" : "";
 
@@ -111,10 +173,9 @@ function createInpostIcon(status, isAiSelected = false) {
 
 
 // ══════════════════════════════════════════
-//  POPUP  (Lucide SVG zamiast emoji)
+//  POPUP
 // ══════════════════════════════════════════
 
-// Mini helper — inline SVG z Lucide (nie wymaga biblioteki w popupie)
 const ICONS = {
     clock: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
               fill="none" stroke="currentColor" stroke-width="2"
@@ -279,7 +340,7 @@ function useMyLocation() {
                         border-radius:50%;
                         box-shadow:0 2px 6px rgba(0,0,0,0.4);
                     "></div>`,
-                    className: "", iconSize: [14,14], iconAnchor: [7,7]
+                    className: "", iconSize: [14, 14], iconAnchor: [7, 7]
                 })
             }).addTo(map).bindPopup("Twoja lokalizacja");
 
@@ -293,8 +354,9 @@ function useMyLocation() {
                 data.forEach(point => {
                     if (!point.lat || !point.lng) return;
                     const marker = L.marker([point.lat, point.lng], {
-                        icon: createInpostIcon(point.status),
-                        _name: point.name, _status: point.status
+                        icon:    createInpostIcon(point.status),
+                        _name:   point.name,
+                        _status: point.status
                     });
                     marker.bindPopup(buildPopup(point), {
                         maxWidth: 240, className: "inpost-popup"
@@ -351,17 +413,3 @@ async function askAI() {
         hideAIThinking("Błąd połączenia z AI.");
     }
 }
-
-
-// ══════════════════════════════════════════
-//  ENTER + INIT
-// ══════════════════════════════════════════
-
-document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("city-input").addEventListener("keydown", e => {
-        if (e.key === "Enter") fetchPoints();
-    });
-    document.getElementById("ai-input").addEventListener("keydown", e => {
-        if (e.key === "Enter") askAI();
-    });
-});

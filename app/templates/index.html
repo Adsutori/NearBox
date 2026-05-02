@@ -1,16 +1,22 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="pl" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InPost Finder</title>
+    <title>InPost Finder — Mapa</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
-
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+    <!-- Wczytaj motyw PRZED renderem — zero flash -->
+    <script>
+        (function() {
+            const t = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
 </head>
 <body>
 
@@ -23,22 +29,20 @@
     <!-- ── HEADER ── -->
     <header id="header">
 
-        <!-- Logo -->
-        <div id="logo">
-            <svg viewBox="0 0 90 30" xmlns="http://www.w3.org/2000/svg" style="height:26px;">
-                <rect width="90" height="30" rx="5" fill="#1a1a1a"/>
+        <a href="/" id="logo">
+            <svg viewBox="0 0 90 30" xmlns="http://www.w3.org/2000/svg" style="height:24px;">
+                <rect width="90" height="30" rx="5" fill="#ffd402"/>
                 <text x="8" y="21" font-family="Segoe UI,sans-serif"
-                      font-size="14" font-weight="700" fill="#ffd402">InPost</text>
+                      font-size="14" font-weight="700" fill="#1a1a1a">InPost</text>
             </svg>
-        </div>
+        </a>
 
-        <!-- Search -->
         <div id="search-bar">
             <div class="input-wrapper">
                 <i data-lucide="search" class="input-icon"></i>
                 <input type="text" id="city-input" placeholder="Wpisz miasto…"/>
             </div>
-            <button class="btn btn-dark" onclick="fetchPoints()">
+            <button class="btn btn-primary" onclick="fetchPoints()">
                 <i data-lucide="search"></i>
                 <span>Szukaj</span>
             </button>
@@ -48,7 +52,6 @@
             </button>
         </div>
 
-        <!-- Filters -->
         <div id="filters">
             <label class="chip">
                 <input type="checkbox" id="filter-locker">
@@ -77,8 +80,13 @@
             </label>
         </div>
 
-        <!-- Status -->
         <div id="status"></div>
+
+        <!-- ── THEME TOGGLE ── -->
+        <button id="theme-toggle" title="Przełącz motyw">
+            <i data-lucide="sun"  id="icon-sun"></i>
+            <i data-lucide="moon" id="icon-moon"></i>
+        </button>
 
     </header>
 
@@ -92,7 +100,7 @@
                 <i data-lucide="bot"></i>
                 <span>Zapytaj AI</span>
             </div>
-            <div class="input-wrapper dark">
+            <div class="input-wrapper">
                 <i data-lucide="message-circle" class="input-icon"></i>
                 <input id="ai-input" type="text"
                        placeholder="np. paczkomat czynny całą dobę blisko centrum"/>
