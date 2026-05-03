@@ -357,7 +357,7 @@ def recommend(user_query: str, points: list, city: str = "", lat=None, lng=None)
     # print(f"[DEBUG] top5 names = {[p.get('name') for p in sorted_points[:5]]}", flush=True)
     # print(f"{'='*50}\n", flush=True)
 
-    top_points  = sorted_points[:5]
+    top_points  = sorted_points[:3]
     points_text = "\n".join([
         f"- {p['name']} | {p['address']} | "
         f"status: {p['status']} | godziny: {p.get('opening_hours', '?')} | "

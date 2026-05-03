@@ -167,15 +167,18 @@ def ai_recommend_view(request):
     if not user_query:
         return JsonResponse({"error": "Brak query"}, status=400)
 
-    # Pobierz punkty — po lokalizacji lub po mieście
     if lat and lng:
-        points = get_points_by_location(float(lat), float(lng))
+        # Mamy GPS — pobierz tylko najbliższe 25 przez API lokalizacyjne
+        points = get_points_by_location(float(lat), float(lng), radius=5)
     elif city:
+        # Pobierz wszystkie dla miasta (teraz równolegle — szybko)
         points = get_points_by_city(city)
     else:
         return JsonResponse({"error": "Brak city lub lokalizacji"}, status=400)
 
-    data = simplify_points(points)
+    # Ogranicz do 25 punktów przed wysłaniem do AI
+    # (ai.py i tak sortuje po odległości — weźmie top 5 do prompta)
+    data = simplify_points(points[:100])   # max 100 do sortowania, AI weźmie top 5
 
     response = recommend(user_query, data, city, lat=lat, lng=lng)
     return JsonResponse({"recommendation": response})

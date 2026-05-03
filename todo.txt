@@ -2,8 +2,8 @@
     [X] auto ustawianie miasta
     [X] znajdz paczkomaty obok mnie
 
-[ ] filtrowanie: 
-    [ ] po wlaczeniu np opcji 24/7 automatycznie wszystkie paczkomaty nie bedace 24/7 mają znikac z mapy - tak samo z resztą filtrow
+[X] filtrowanie: 
+    [X] po wlaczeniu np opcji 24/7 automatycznie wszystkie paczkomaty nie bedace 24/7 mają znikac z mapy - tak samo z resztą filtrow
 
 [X] znajdowanie paczkomatow AI:
     [X] po wyłączeniu pop-up modala automatycznie pokazanego po wyszukaniu danego paczkomatu paczkomat dalej podswietla sie na zielono i bouncuje, to trzeba zmienic aby po kliknieciu tego krzyzyka w modalu to popupowanie i bouncowanie sie konczylo
@@ -14,7 +14,7 @@
 [X] AI:
     [X] filtrowanie tresci wprowadzonych przez usera - ai filtruje czy zapytanie usera faktycznie jest na temat, jesli nie jest na temat (np user wpisze 'kocham legie') to zeby AI nie odpowiadal proponując jakis paczkomat - dodac easteregga ze jesli ktos napisze cos nie na temat to AI jakos smiesznie odpowie na to co user wprowadzil ale dajac do zrozumienia ze to nie miejsce zeby tu takie rzeczy wprowadzac i jesli chce znalezc jakis paczkomat blisko jakiegos obiektu to chetnie mu pomoze. jesli user wprowadzi cos obrazliwego to niech AI powie cos w stylu 'nie ladnie tak mowic' czy cos. jesli user wprowadzi zapytanie inne niz znajdowanie paczkomatu blisko jakiegos obiektu/paczkomatu najblizej danego miejsca na mapie to niech AI odpowie ze niestety na to pytanie nie moze odpowiedziec, ale np moze dac jakąś sugestie jak rozwiazac problem usera.
 
-[ ] sprawdzic czy da sie zoptymalizowac:
-    [ ] strasznie dlugo ladują sie paczkomaty w duzych miastach - np w wwie zajmuje to około 80 sekund
-    [ ] mapa laguje w duzych miastach przez duzą ilosc paczkomatow
-    [ ] dlugo ai mysli w duzych miastach - np w wwie kiedy chce znalezc jakis paczkomat blisko danego obiektu to mysli ponad 80 sekund (ok. 82s)
+[X] sprawdzic czy da sie zoptymalizowac:
+    [X] strasznie dlugo ladują sie paczkomaty w duzych miastach - np w wwie zajmuje to około 80 sekund
+    [X] mapa laguje w duzych miastach przez duzą ilosc paczkomatow
+    [X] dlugo ai mysli w duzych miastach - np w wwie kiedy chce znalezc jakis paczkomat blisko danego obiektu to mysli ponad 80 sekund (ok. 82s)
