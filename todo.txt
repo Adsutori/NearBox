@@ -1,0 +1,5 @@
+- moja lokalizacja
+    - auto ustawianie miasta
+    - znajdz paczkomaty obok mnie
+
+- filtrowanie: 

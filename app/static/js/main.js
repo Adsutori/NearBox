@@ -56,6 +56,8 @@ function toggleTheme() {
         tileLight.remove();
         tileDark.addTo(map);
     }
+
+    map.invalidateSize();
 }
 
 // Podpięcie przycisku — po załadowaniu DOM

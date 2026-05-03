@@ -159,7 +159,7 @@ h2 {
         linear-gradient(var(--border) 1px, transparent 1px),
         linear-gradient(90deg, var(--border) 1px, transparent 1px);
     background-size: 60px 60px;
-    opacity: 0.35;
+    opacity: 0.6;
     mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 20%, transparent 100%);
     pointer-events: none;
 }
@@ -169,7 +169,7 @@ h2 {
     position: absolute;
     top: -200px; left: -200px;
     width: 700px; height: 700px;
-    background: radial-gradient(circle, rgba(255,212,2,0.07) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(255,212,2,0.1) 10%, transparent 80%);
     pointer-events: none;
     animation: glow-drift 8s ease-in-out infinite alternate;
 }
@@ -201,9 +201,9 @@ h2 {
 
 .badge-float i { width: 13px; height: 13px; color: var(--yellow); flex-shrink: 0; }
 
-.badge-1 { top: 18%; left: 3%;    animation-delay: 0s;   }
-.badge-2 { top: 10%; right: 37%;  animation-delay: 1.2s; }
-.badge-3 { top: 26%; left: 25%;   animation-delay: 0.6s; }
+.badge-1 { top: 18%; left: 20%;    animation-delay: 0s;   }
+.badge-2 { top: 12%; right: 50%;  animation-delay: 1.2s; }
+.badge-3 { top: 26%; left: 30%;   animation-delay: 0.6s; }
 
 @keyframes float {
     0%, 100% { transform: translateY(0px);  }
