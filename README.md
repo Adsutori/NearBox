@@ -38,28 +38,38 @@ results and explains why.
 ### Screenshots
 
 **1. Landing page**
+
 The starting view of the application with a city search field and an automatic
 geolocation button.
+
 ![Landing](screenshots/01_landing.png)
 
 **2. Main view — map with lockers loaded for a city**
+
 Map with all parcel lockers loaded for the selected city — markers are
 color-coded by operational status.
+
 ![Main view](screenshots/02_map_loaded.png)
 
 **3. Filters in action**
+
 The filter panel in use — enabling "24/7" and "working only" instantly updates
 the visible markers on the map.
+
 ![Filters in action](screenshots/03_filters.png)
 
 **4. AI recommendation**
+
 The AI assistant identifies the best locker based on the user's plain-language
 description and explains its choice.
+
 ![AI recommendation](screenshots/04_ai_recommendation.png)
 
 **5. AI Easter egg**
+
 When the user asks something unrelated to parcel lockers, the AI responds with
 a touch of humor and politely steers the conversation back on track.
+
 ![AI Easter egg](screenshots/05_easteregg.png)
 
 ---
