@@ -77,7 +77,7 @@ def _haversine(lat1, lng1, lat2, lng2) -> float:
     return R * 2 * math.asin(math.sqrt(a))
 
 def points_view(request):
-    city = request.GET.get("city", "")
+    city = request.GET.get("city", "").strip()[:100]
     lat  = request.GET.get("lat")
     lng  = request.GET.get("lng")
 
@@ -166,6 +166,9 @@ def ai_recommend_view(request):
 
     if not user_query:
         return JsonResponse({"error": "Brak query"}, status=400)
+    
+    if len(user_query) > 300:
+        return JsonResponse({"error": "Zapytanie zbyt długie"}, status=400)
 
     if lat and lng:
         # Mamy GPS — pobierz tylko najbliższe 25 przez API lokalizacyjne

@@ -82,7 +82,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('ai-input').addEventListener('keydown', e => {
         if (e.key === 'Enter') askAI();
     });
+
+    ["filter-locker","filter-247","filter-operating","filter-outdoor","filter-easy-access"]
+        .forEach(id => {
+            document.getElementById(id).addEventListener('change', applyFilters);
+        });
 });
+
 
 
 // ══════════════════════════════════════════
@@ -297,7 +303,7 @@ function matchesFilters(point, filters) {
 }
 
 
-function applyFilters() {
+function applyFilters(refitBounds = false) {
     if (allPoints.length === 0) return;   // nic nie załadowano — nic nie rób
 
     clearAIMarker();
@@ -321,6 +327,10 @@ function applyFilters() {
         bounds.push([point.lat, point.lng]);
     });
 
+    if (refitBounds && bounds.length) {
+        map.fitBounds(bounds, { padding: [40, 40] });
+    }
+
     const status = document.getElementById("status");
     if (visible.length === 0) {
         status.textContent = "Brak wyników — zmień filtry";
@@ -329,13 +339,13 @@ function applyFilters() {
     }
 }
 
-// Podepnij eventy na checkboxy — po załadowaniu DOM
-document.addEventListener('DOMContentLoaded', () => {
-    ["filter-locker","filter-247","filter-operating","filter-outdoor","filter-easy-access"]
-        .forEach(id => {
-            document.getElementById(id).addEventListener('change', applyFilters);
-        });
-});
+// // Podepnij eventy na checkboxy — po załadowaniu DOM
+// document.addEventListener('DOMContentLoaded', () => {
+//     ["filter-locker","filter-247","filter-operating","filter-outdoor","filter-easy-access"]
+//         .forEach(id => {
+//             document.getElementById(id).addEventListener('change', applyFilters);
+//         });
+// });
 
 
 // ══════════════════════════════════════════
@@ -378,7 +388,17 @@ async function fetchPoints() {
         const evtSource = new EventSource(`/api/points/stream/?${params}`);
 
         evtSource.onmessage = (e) => {
-            const msg = JSON.parse(e.data);
+            let msg;
+            try {
+                msg = JSON.parse(e.data);
+            } catch {
+                evtSource.close();
+                hideLoading();
+                resetLoadingProgress();
+                status.textContent = "Błąd odpowiedzi serwera";
+                resolve();
+                return;
+            }
 
             if (msg.error) {
                 evtSource.close();
@@ -398,7 +418,7 @@ async function fetchPoints() {
             hideLoading();
             resetLoadingProgress();
 
-            allPoints = msg.points || [];   // ← zapisz WSZYSTKIE punkty
+            allPoints = msg.points || [];
 
             if (allPoints.length === 0) {
                 status.textContent = "Brak wyników dla tego miasta";
@@ -406,9 +426,10 @@ async function fetchPoints() {
                 return;
             }
 
-            applyFilters();   // ← renderuj z aktualnymi filtrami
+            applyFilters(true);
             resolve();
         };
+
 
         evtSource.onerror = () => {
             evtSource.close();
@@ -444,25 +465,6 @@ function placeUserMarker(lat, lng) {
             className: "", iconSize: [14, 14], iconAnchor: [7, 7]
         })
     }).addTo(map).bindPopup("Twoja lokalizacja");
-}
-
-function renderPoints(data) {
-    const bounds = [];
-    data.forEach(point => {
-        if (!point.lat || !point.lng) return;
-        const marker = L.marker([point.lat, point.lng], {
-            icon:    createInpostIcon(point.status),
-            _name:   point.name,
-            _status: point.status
-        });
-        marker.bindPopup(buildPopup(point), {
-            maxWidth: 240, className: "inpost-popup"
-        });
-        markersLayer.addLayer(marker);
-        bounds.push([point.lat, point.lng]);
-    });
-    if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
-    return bounds.length;
 }
 
 
@@ -501,8 +503,11 @@ async function autofillCity() {
                 if (city) {
                     document.getElementById("city-input").value = city;
                     status.textContent = `Wykryto: ${city}`;
-                    btn.disabled = false;
-                    await fetchPoints();   // ← od razu szuka
+                    try {
+                        await fetchPoints();
+                    } finally {
+                        btn.disabled = false;   // zawsze odblokuj, nawet gdy fetchPoints rzuci błąd
+                    }
                 } else {
                     status.textContent = "Nie udało się wykryć miasta";
                     btn.disabled = false;
