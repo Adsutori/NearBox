@@ -260,65 +260,106 @@ function getFilters() {
 
 
 // ══════════════════════════════════════════
-//  FETCH PUNKTÓW
+//  FETCH PUNKTÓW — SSE stream
 // ══════════════════════════════════════════
+
+function showLoadingProgress(found, page, totalPages) {
+    document.getElementById("loading-progress").style.display = "flex";
+    document.getElementById("progress-label").textContent     = `${found} znalezionych…`;
+
+    const pct = totalPages > 0 ? Math.round((page / totalPages) * 100) : 0;
+    document.getElementById("progress-bar").style.width = `${pct}%`;
+}
+
+function resetLoadingProgress() {
+    document.getElementById("loading-progress").style.display = "none";
+    document.getElementById("progress-bar").style.width       = "0%";
+    document.getElementById("progress-label").textContent     = "0 znalezionych";
+}
 
 async function fetchPoints() {
     const city   = document.getElementById("city-input").value.trim();
     const status = document.getElementById("status");
 
     if (!city) {
-        status.textContent = "Wpisz nazwę miasta";
+        status.textContent = "Wpisz nazwę miejscowości";
         return;
     }
 
     status.textContent = "";
     markersLayer.clearLayers();
+    resetLoadingProgress();
     showLoading("Szukam paczkomatów…");
 
-    try {
-        const params = new URLSearchParams({ city, ...getFilters() });
-        const res    = await fetch(`/api/points/?${params}`);
+    const params = new URLSearchParams({ city, ...getFilters() });
 
-        hideLoading();
+    return new Promise((resolve) => {
+        const evtSource = new EventSource(`/api/points/stream/?${params}`);
 
-        if (!res.ok) { status.textContent = "Błąd serwera"; return; }
+        evtSource.onmessage = (e) => {
+            const msg = JSON.parse(e.data);
 
-        const data = await res.json();
+            if (msg.error) {
+                evtSource.close();
+                hideLoading();
+                resetLoadingProgress();
+                status.textContent = "Błąd serwera";
+                resolve();
+                return;
+            }
 
-        if (data.length === 0) {
-            status.textContent = "Brak wyników — zmień filtry";
-            return;
-        }
+            if (!msg.done) {
+                // Aktualizuj pasek postępu na bieżąco
+                showLoadingProgress(msg.found, msg.page, msg.total_pages);
+                return;
+            }
 
-        const bounds = [];
-        data.forEach(point => {
-            if (!point.lat || !point.lng) return;
+            // done === true — mamy wszystkie dane
+            evtSource.close();
+            hideLoading();
+            resetLoadingProgress();
 
-            const marker = L.marker([point.lat, point.lng], {
-                icon:    createInpostIcon(point.status),
-                _name:   point.name,
-                _status: point.status
+            const data = msg.points || [];
+
+            if (data.length === 0) {
+                status.textContent = "Brak wyników — zmień filtry";
+                resolve();
+                return;
+            }
+
+            const bounds = [];
+            data.forEach(point => {
+                if (!point.lat || !point.lng) return;
+
+                const marker = L.marker([point.lat, point.lng], {
+                    icon:    createInpostIcon(point.status),
+                    _name:   point.name,
+                    _status: point.status
+                });
+
+                marker.bindPopup(buildPopup(point), {
+                    maxWidth: 240, className: "inpost-popup"
+                });
+
+                markersLayer.addLayer(marker);
+                bounds.push([point.lat, point.lng]);
             });
 
-            marker.bindPopup(buildPopup(point), {
-                maxWidth: 240, className: "inpost-popup"
-            });
+            if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
+            status.textContent = `Znaleziono ${data.length} punktów`;
+            resolve();
+        };
 
-            markersLayer.addLayer(marker);
-            bounds.push([point.lat, point.lng]);
-        });
-
-        if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
-
-        status.textContent = `Znaleziono ${data.length} punktów`;
-
-    } catch (err) {
-        hideLoading();
-        console.error(err);
-        status.textContent = "Błąd połączenia";
-    }
+        evtSource.onerror = () => {
+            evtSource.close();
+            hideLoading();
+            resetLoadingProgress();
+            status.textContent = "Błąd połączenia";
+            resolve();
+        };
+    });
 }
+
 
 
 // ══════════════════════════════════════════

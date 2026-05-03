@@ -7,6 +7,114 @@ from openai import OpenAI, OpenAIError
 
 GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY")
 
+
+# ─────────────────────────────────────────────
+#  KROK 0 — KLASYFIKACJA ZAPYTANIA
+# ─────────────────────────────────────────────
+
+INTENT_SYSTEM_PROMPT = """
+Jesteś moderatorem zapytań dla aplikacji NearBox — aplikacji do znajdowania paczkomatów InPost.
+
+Twoim zadaniem jest sklasyfikować zapytanie użytkownika do jednej z kategorii:
+
+1. ON_TOPIC       — zapytanie dotyczy szukania paczkomatu blisko jakiegoś miejsca/obiektu
+                    Przykłady: "paczkomat blisko PKP", "paczkomat obok Lidla", 
+                    "paczkomat przy ul. Królewskiej", "najbliższy paczkomat centrum"
+
+2. TOO_VAGUE      — zapytanie jest o paczkomat, ale nie podaje żadnego miejsca odniesienia
+                    Przykłady: "daj mi paczkomat", "pokaż jakiś paczkomat", "dowolny"
+
+3. OFF_TOPIC      — zapytanie jest kompletnie nie na temat paczkomatów
+                    Przykłady: "kocham Legię", "jaka jest pogoda", "napisz mi wiersz",
+                    "co to jest fotosynteza", "kim jesteś"
+
+4. OFFENSIVE      — zapytanie zawiera wulgaryzmy, obraźliwe treści lub hejt
+
+Odpowiedz WYŁĄCZNIE jednym słowem: ON_TOPIC, TOO_VAGUE, OFF_TOPIC lub OFFENSIVE.
+Żadnego dodatkowego tekstu.
+""".strip()
+
+
+EASTER_EGG_SYSTEM_PROMPT = """
+Jesteś zabawnym asystentem aplikacji NearBox do znajdowania paczkomatów InPost.
+Użytkownik napisał coś kompletnie nie na temat.
+
+Twoim zadaniem jest:
+1. Odnieść się krótko i śmiesznie do tego co napisał (1 zdanie, z humorem, ale bez złośliwości)
+2. Delikatnie dać do zrozumienia, że to nie jest miejsce na takie pytania
+3. Zaproponować pomoc w znalezieniu paczkomatu blisko jakiegoś miejsca
+
+Odpowiedz po polsku, max 3 zdania. Bądź ciepły i zabawny, nie sarkastyczny.
+Nie używaj emoji na początku zdania.
+""".strip()
+
+
+OFFENSIVE_RESPONSES = [
+    "Hej, nie ładnie tak mówić! 🫵 Jestem tu po to, żeby pomagać znajdować paczkomaty — może zamiast tego powiesz mi, blisko jakiego miejsca szukasz?",
+    "Oj, oj... takich słów tu nie używamy. 😅 Wróćmy do tematu — mogę Ci znaleźć paczkomat blisko dowolnego miejsca w mieście!",
+    "To nie przeszło przez mój filtr kulturalności. 😇 Ale serio — jeśli potrzebujesz paczkomatu blisko jakiegoś miejsca, chętnie pomogę!",
+]
+
+TOO_VAGUE_RESPONSE = (
+    "Chętnie pomogę! 📦 Powiedz mi tylko, blisko jakiego miejsca szukasz paczkomatu — "
+    "np. 'paczkomat blisko dworca', 'obok Lidla' albo 'przy ul. Królewskiej'. "
+    "Im dokładniej, tym lepiej trafię!"
+)
+
+
+def _classify_intent(user_query: str, client: OpenAI) -> str:
+    """
+    Klasyfikuje zapytanie użytkownika.
+    Zwraca: ON_TOPIC | TOO_VAGUE | OFF_TOPIC | OFFENSIVE
+    """
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": INTENT_SYSTEM_PROMPT},
+                {"role": "user",   "content": user_query}
+            ],
+            max_tokens=10,
+            temperature=0,
+        )
+        result = response.choices[0].message.content.strip().upper()
+        print(f"[AI] Klasyfikacja zapytania: '{result}'", flush=True)
+
+        if result in ("ON_TOPIC", "TOO_VAGUE", "OFF_TOPIC", "OFFENSIVE"):
+            return result
+
+        # Fallback — jeśli GPT zwrócił coś innego
+        return "ON_TOPIC"
+
+    except OpenAIError as e:
+        print(f"[AI] Błąd klasyfikacji: {e}", flush=True)
+        return "ON_TOPIC"
+
+
+def _generate_easter_egg(user_query: str, client: OpenAI) -> str:
+    """
+    Generuje śmieszną odpowiedź dla off-topic zapytań.
+    """
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": EASTER_EGG_SYSTEM_PROMPT},
+                {"role": "user",   "content": f"Użytkownik napisał: \"{user_query}\""}
+            ],
+            max_tokens=120,
+            temperature=0.9,
+        )
+        return response.choices[0].message.content.strip()
+
+    except OpenAIError as e:
+        print(f"[AI] Błąd easter egg: {e}", flush=True)
+        return (
+            "Hmm, to ciekawe... ale tu zajmujemy się paczkomatami! 📦 "
+            "Jeśli chcesz znaleźć paczkomat blisko jakiegoś miejsca, chętnie pomogę."
+        )
+
+
 # ─────────────────────────────────────────────
 #  KROK 1 — GPT wyciąga nazwę miejsca z zapytania
 # ─────────────────────────────────────────────
@@ -63,7 +171,7 @@ def _extract_location_ai(user_query: str, city: str, client: OpenAI) -> str | No
     except Exception as e:
         print(f"[AI] Nieoczekiwany błąd w _extract_location_ai: {e}", flush=True)
         return None
-    
+
 
 # ─────────────────────────────────────────────
 #  KROK 2 — Google Geocoding API
@@ -89,7 +197,7 @@ def _geocode_google(location_name: str, city: str) -> tuple[float, float, bool] 
             "https://maps.googleapis.com/maps/api/geocode/json",
             params={
                 "address": query,
-                "key": GOOGLE_MAPS_API_KEY,
+                "key":     GOOGLE_MAPS_API_KEY,
                 "language": "pl",
             },
             timeout=5,
@@ -103,17 +211,16 @@ def _geocode_google(location_name: str, city: str) -> tuple[float, float, bool] 
         print(f"[GEOCODE] Google nie znalazł: '{query}' — status: {data.get('status')}", flush=True)
         return None
 
-    result = data["results"][0]
-    loc    = result["geometry"]["location"]
-    lat    = float(loc["lat"])
-    lon    = float(loc["lng"])
+    result      = data["results"][0]
+    loc         = result["geometry"]["location"]
+    lat         = float(loc["lat"])
+    lon         = float(loc["lng"])
 
-    # Sprawdź czy Google zwrócił konkretny obiekt czy tylko miasto/region
-    result_types    = result.get("types", [])
-    is_partial      = result.get("partial_match", False)
-    vague_types     = {"locality", "administrative_area_level_1",
-                       "administrative_area_level_2", "country", "postal_code"}
-    is_precise      = not is_partial and not bool(vague_types & set(result_types))
+    result_types = result.get("types", [])
+    is_partial   = result.get("partial_match", False)
+    vague_types  = {"locality", "administrative_area_level_1",
+                    "administrative_area_level_2", "country", "postal_code"}
+    is_precise   = not is_partial and not bool(vague_types & set(result_types))
 
     print(
         f"[GEOCODE] Google: '{query}' → ({lat:.5f}, {lon:.5f}) | "
@@ -129,13 +236,12 @@ def _geocode_google(location_name: str, city: str) -> tuple[float, float, bool] 
 # ─────────────────────────────────────────────
 
 def _distance_km(lat1, lon1, lat2, lon2) -> float:
-    """Haversine — odległość w km między dwoma punktami."""
-    R = 6371
+    R    = 6371
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
-    a = (math.sin(dlat / 2) ** 2 +
-         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
-         math.sin(dlon / 2) ** 2)
+    a    = (math.sin(dlat / 2) ** 2 +
+            math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
+            math.sin(dlon / 2) ** 2)
     return R * 2 * math.asin(math.sqrt(a))
 
 
@@ -149,19 +255,11 @@ def _sort_by_location(
     city: str,
     client: OpenAI
 ) -> tuple[list, tuple[float, float] | None, bool]:
-    """
-    Sortuje paczkomaty wg odległości od miejsca z zapytania.
 
-    Zwraca (posortowana_lista, coords, is_precise).
-    Jeśli geokodowanie zawiodło — zwraca oryginalną listę, None, False.
-    """
-
-    # Krok 1 — GPT wyciąga nazwę miejsca
     location_name = _extract_location_ai(user_query, city, client) if client else None
     print(f"[AI] Wyciągnięta nazwa miejsca: '{location_name}'", flush=True)
 
-    # Krok 2 — Google geokoduje
-    coords = None
+    coords     = None
     is_precise = False
 
     if location_name:
@@ -170,24 +268,21 @@ def _sort_by_location(
             lat, lon, is_precise = result
             coords = (lat, lon)
 
-    # Fallback — jeśli GPT zwrócił NULL lub Google nic nie znalazł,
-    # próbujemy geokodować samo miasto
     if not coords:
         result = _geocode_google(city, "")
         if result:
             lat, lon, _ = result
-            coords = (lat, lon)
-            is_precise = False
+            coords      = (lat, lon)
+            is_precise  = False
             print(f"[GEOCODE] Fallback do centrum miasta: {coords}", flush=True)
 
     if not coords:
         return points, None, False
 
-    # Krok 3 — Haversine dla każdego paczkomatu
     lat, lon = coords
     for p in points:
-        p_lat = p.get("lat")
-        p_lon = p.get("lng")
+        p_lat    = p.get("lat")
+        p_lon    = p.get("lng")
         p["_dist"] = (
             _distance_km(lat, lon, float(p_lat), float(p_lon))
             if p_lat and p_lon else 9999
@@ -203,31 +298,42 @@ def _sort_by_location(
 def recommend(user_query: str, points: list, city: str = "") -> str:
     client = OpenAI()
 
+    # ── KROK 0: Klasyfikacja zapytania ──────────────────────────
+    intent = _classify_intent(user_query, client)
+
+    if intent == "OFFENSIVE":
+        import random
+        return random.choice(OFFENSIVE_RESPONSES)
+
+    if intent == "OFF_TOPIC":
+        return _generate_easter_egg(user_query, client)
+
+    if intent == "TOO_VAGUE":
+        return TOO_VAGUE_RESPONSE
+
+    # ── ON_TOPIC: normalna ścieżka ───────────────────────────────
     sorted_points, coords, is_precise = _sort_by_location(
         user_query, points, city, client
     )
 
-    # ── DEBUG ────────────────────────────────
     print(f"\n{'='*50}", flush=True)
     print(f"[DEBUG] query      = '{user_query}'", flush=True)
     print(f"[DEBUG] city       = '{city}'", flush=True)
+    print(f"[DEBUG] intent     = '{intent}'", flush=True)
     print(f"[DEBUG] coords     = {coords}", flush=True)
     print(f"[DEBUG] is_precise = {is_precise}", flush=True)
     print(f"[DEBUG] top5 dists = {[round(p.get('_dist', 9999), 2) for p in sorted_points[:5]]}", flush=True)
     print(f"[DEBUG] top5 names = {[p.get('name') for p in sorted_points[:5]]}", flush=True)
     print(f"{'='*50}\n", flush=True)
-    # ── KONIEC DEBUG ─────────────────────────
 
-    top_points = sorted_points[:5]
-
-    points_text = "\n".join([
+    top_points   = sorted_points[:5]
+    points_text  = "\n".join([
         f"- {p['name']} | {p['address']} | "
         f"status: {p['status']} | godziny: {p.get('opening_hours', '?')} | "
         f"odległość: {p.get('_dist', 9999):.2f} km"
         for p in top_points
     ])
 
-    # Jeśli geokodowanie było nieprecyzyjne — poinformuj GPT
     geocode_note = (
         "UWAGA: Nie udało się zlokalizować konkretnego miejsca z zapytania — "
         "paczkomaty są posortowane wg centrum miasta, nie wg podanego miejsca. "
@@ -240,8 +346,8 @@ def recommend(user_query: str, points: list, city: str = "") -> str:
         {
             "role": "system",
             "content": (
-                "Jesteś pomocnym asystentem InPost. "
-                "Pomagasz użytkownikom znaleźć najlepszy paczkomat. "
+                "Jesteś pomocnym asystentem NearBox. "
+                "Pomagasz użytkownikom znaleźć najlepszy paczkomat InPost. "
                 "Odpowiadaj w tym samym języku co zapytanie użytkownika. "
                 "Bądź konkretny i zwięzły — maksymalnie 3-4 zdania. "
                 "Opieraj się WYŁĄCZNIE na danych z listy paczkomatów — "
@@ -276,77 +382,3 @@ def recommend(user_query: str, points: list, city: str = "") -> str:
         return f"❌ Błąd AI: {str(e)}"
     except Exception as e:
         return f"❌ Nieoczekiwany błąd: {str(e)}"
-
-
-# # BIELIK (nie mogę podpiąć bo darmowy plan na hugging face go nie obejmuje a ollama za dużo waży😭)
-# import os
-# import requests
-
-# # ── OPCJA A: Hugging Face Inference API (bezpłatne, wymaga tokenu) ──
-# HF_TOKEN  = os.environ.get("HF_TOKEN")
-# HF_MODEL  = "speakleash/Bielik-7B-Instruct-v0.1"
-# HF_URL   = f"https://api-inference.huggingface.co/models/{HF_MODEL}/v1/chat/completions"
-
-# def recommend_hf(user_query: str, points: list) -> str:
-#     """Rekomendacja przez Hugging Face Inference API."""
-
-#     top = points[:8]  # bierzemy top 8 żeby nie przepalać tokenów
-
-#     points_text = "\n".join([
-#         f"- {p['name']} | {p['address']}, {p['city']} | "
-#         f"status: {p['status']} | godziny: {p.get('opening_hours','?')} | "
-#         f"score: {p.get('score', 0)}"
-#         for p in top
-#     ])
-
-#     messages = [
-#         {
-#             "role": "system",
-#             "content": (
-#                 "Jesteś pomocnym asystentem InPost. "
-#                 "Pomagasz użytkownikom znaleźć najlepszy paczkomat. "
-#                 "Odpowiadaj krótko i konkretnie po polsku."
-#             )
-#         },
-#         {
-#             "role": "user",
-#             "content": (
-#                 f"Zapytanie użytkownika: {user_query}\n\n"
-#                 f"Dostępne paczkomaty (posortowane wg oceny):\n{points_text}\n\n"
-#                 "Poleć 2-3 najlepsze opcje i krótko wyjaśnij dlaczego."
-#             )
-#         }
-#     ]
-
-#     headers = {
-#         "Authorization": f"Bearer {HF_TOKEN}",
-#         "Content-Type":  "application/json"
-#     }
-
-#     payload = {
-#         "model":       HF_MODEL,
-#         "messages":    messages,
-#         "max_tokens":  300,
-#         "temperature": 0.4,   # niższa = bardziej konkretne odpowiedzi
-#         "stream":      False
-#     }
-
-#     try:
-#         res = requests.post(HF_URL, headers=headers, json=payload, timeout=30)
-#         res.raise_for_status()
-#         return res.json()["choices"][0]["message"]["content"]
-
-#     except requests.exceptions.Timeout:
-#         return "⏳ Model ładuje się (cold start) — spróbuj za chwilę."
-#     except Exception as e:
-#         return f"❌ Błąd AI: {str(e)}"
-    
-
-# # ── GŁÓWNA FUNKCJA — automatyczny fallback ──
-# def recommend(user_query: str, points: list) -> str:
-#     """
-#     Próbuje HuggingFace, fallback na Ollama.
-#     W views.py wywołujesz tylko tę funkcję.
-#     """
-
-#     return recommend_hf(user_query, points)
