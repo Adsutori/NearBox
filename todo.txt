@@ -1,12 +1,12 @@
-[ ] moja lokalizacja:
-    [ ] auto ustawianie miasta
-    [ ] znajdz paczkomaty obok mnie
+[X] moja lokalizacja:
+    [X] auto ustawianie miasta
+    [X] znajdz paczkomaty obok mnie
 
 [ ] filtrowanie: 
     [ ] po wlaczeniu np opcji 24/7 automatycznie wszystkie paczkomaty nie bedace 24/7 mają znikac z mapy - tak samo z resztą filtrow
 
-[ ] znajdowanie paczkomatow AI:
-    [ ] po wyłączeniu pop-up modala automatycznie pokazanego po wyszukaniu danego paczkomatu paczkomat dalej podswietla sie na zielono i bouncuje, to trzeba zmienic aby  
+[X] znajdowanie paczkomatow AI:
+    [X] po wyłączeniu pop-up modala automatycznie pokazanego po wyszukaniu danego paczkomatu paczkomat dalej podswietla sie na zielono i bouncuje, to trzeba zmienic aby po kliknieciu tego krzyzyka w modalu to popupowanie i bouncowanie sie konczylo
 
 [X] szukanie paczkomatow w danej miejscowosci:
     [X] podczas szukania paczkomatow w wyswietlanym modalu niech pokazuje na biezaco postep ile juz znaleziono
@@ -16,5 +16,5 @@
 
 [ ] sprawdzic czy da sie zoptymalizowac:
     [ ] strasznie dlugo ladują sie paczkomaty w duzych miastach - np w wwie zajmuje to około 80 sekund
-    [ ] mapa laguje w duzych miastach
+    [ ] mapa laguje w duzych miastach przez duzą ilosc paczkomatow
     [ ] dlugo ai mysli w duzych miastach - np w wwie kiedy chce znalezc jakis paczkomat blisko danego obiektu to mysli ponad 80 sekund (ok. 82s)

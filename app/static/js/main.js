@@ -35,6 +35,18 @@ if (currentTheme === 'light') {
 
 let markersLayer     = L.layerGroup().addTo(map);
 let aiSelectedMarker = null;
+let userCoords       = null;
+let allPoints        = [];
+
+// ── Czyści podświetlenie AI markera ──
+function clearAIMarker() {
+    if (aiSelectedMarker) {
+        aiSelectedMarker.setIcon(
+            createInpostIcon(aiSelectedMarker.options._status, false)
+        );
+        aiSelectedMarker = null;
+    }
+}
 
 
 // ══════════════════════════════════════════
@@ -123,10 +135,8 @@ function highlightAIMarker(aiText) {
 
     const targetName = match[1];
 
-    if (aiSelectedMarker) {
-        aiSelectedMarker.setIcon(createInpostIcon(aiSelectedMarker.options._status, false));
-        aiSelectedMarker = null;
-    }
+    // Wyczyść poprzednie podświetlenie
+    clearAIMarker();
 
     markersLayer.eachLayer(marker => {
         if (marker.options._name === targetName) {
@@ -135,9 +145,15 @@ function highlightAIMarker(aiText) {
             map.setView(marker.getLatLng(), 16, { animate: true });
             marker.openPopup();
             console.log("[AI HIGHLIGHT] ✅ podświetlono:", targetName);
+
+            // Gdy użytkownik zamknie popup — resetuj ikonę
+            marker.once('popupclose', () => {
+                clearAIMarker();
+            });
         }
     });
 }
+
 
 
 // ══════════════════════════════════════════
@@ -245,7 +261,7 @@ function buildPopup(point) {
 
 
 // ══════════════════════════════════════════
-//  FILTRY
+//  FILTRY — client-side, real-time
 // ══════════════════════════════════════════
 
 function getFilters() {
@@ -257,6 +273,69 @@ function getFilters() {
         only_easy_access: document.getElementById("filter-easy-access").checked,
     };
 }
+
+function matchesFilters(point, filters) {
+    if (filters.only_operating && point.status !== "Operating")
+        return false;
+
+    if (filters.only_247 && !String(point.opening_hours || "").includes("24/7"))
+        return false;
+
+    // type to tablica np. ["parcel_locker", "parcel_locker_superpop"]
+    if (filters.only_locker) {
+        const types = Array.isArray(point.type) ? point.type : [String(point.type || "")];
+        if (!types.some(t => t.includes("parcel_locker"))) return false;
+    }
+
+    if (filters.only_outdoor && point.location_type !== "Outdoor")
+        return false;
+
+    if (filters.only_easy_access && !point.easy_access_zone)
+        return false;
+
+    return true;
+}
+
+
+function applyFilters() {
+    if (allPoints.length === 0) return;   // nic nie załadowano — nic nie rób
+
+    clearAIMarker();
+    markersLayer.clearLayers();
+
+    const filters = getFilters();
+    const visible = allPoints.filter(p => matchesFilters(p, filters));
+    const bounds  = [];
+
+    visible.forEach(point => {
+        if (!point.lat || !point.lng) return;
+        const marker = L.marker([point.lat, point.lng], {
+            icon:    createInpostIcon(point.status),
+            _name:   point.name,
+            _status: point.status
+        });
+        marker.bindPopup(buildPopup(point), {
+            maxWidth: 240, className: "inpost-popup"
+        });
+        markersLayer.addLayer(marker);
+        bounds.push([point.lat, point.lng]);
+    });
+
+    const status = document.getElementById("status");
+    if (visible.length === 0) {
+        status.textContent = "Brak wyników — zmień filtry";
+    } else {
+        status.textContent = `Wyświetlono ${visible.length} z ${allPoints.length} punktów`;
+    }
+}
+
+// Podepnij eventy na checkboxy — po załadowaniu DOM
+document.addEventListener('DOMContentLoaded', () => {
+    ["filter-locker","filter-247","filter-operating","filter-outdoor","filter-easy-access"]
+        .forEach(id => {
+            document.getElementById(id).addEventListener('change', applyFilters);
+        });
+});
 
 
 // ══════════════════════════════════════════
@@ -288,10 +367,12 @@ async function fetchPoints() {
 
     status.textContent = "";
     markersLayer.clearLayers();
+    allPoints = [];   // ← wyczyść cache
     resetLoadingProgress();
     showLoading("Szukam paczkomatów…");
 
-    const params = new URLSearchParams({ city, ...getFilters() });
+    // Backend streamuje BEZ filtrów — filtrujemy client-side
+    const params = new URLSearchParams({ city });
 
     return new Promise((resolve) => {
         const evtSource = new EventSource(`/api/points/stream/?${params}`);
@@ -309,44 +390,23 @@ async function fetchPoints() {
             }
 
             if (!msg.done) {
-                // Aktualizuj pasek postępu na bieżąco
                 showLoadingProgress(msg.found, msg.page, msg.total_pages);
                 return;
             }
 
-            // done === true — mamy wszystkie dane
             evtSource.close();
             hideLoading();
             resetLoadingProgress();
 
-            const data = msg.points || [];
+            allPoints = msg.points || [];   // ← zapisz WSZYSTKIE punkty
 
-            if (data.length === 0) {
-                status.textContent = "Brak wyników — zmień filtry";
+            if (allPoints.length === 0) {
+                status.textContent = "Brak wyników dla tego miasta";
                 resolve();
                 return;
             }
 
-            const bounds = [];
-            data.forEach(point => {
-                if (!point.lat || !point.lng) return;
-
-                const marker = L.marker([point.lat, point.lng], {
-                    icon:    createInpostIcon(point.status),
-                    _name:   point.name,
-                    _status: point.status
-                });
-
-                marker.bindPopup(buildPopup(point), {
-                    maxWidth: 240, className: "inpost-popup"
-                });
-
-                markersLayer.addLayer(marker);
-                bounds.push([point.lat, point.lng]);
-            });
-
-            if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
-            status.textContent = `Znaleziono ${data.length} punktów`;
+            applyFilters();   // ← renderuj z aktualnymi filtrami
             resolve();
         };
 
@@ -361,40 +421,151 @@ async function fetchPoints() {
 }
 
 
+// ══════════════════════════════════════════
+//  HELPERS — GEOLOKALIZACJA
+// ══════════════════════════════════════════
+
+let userLocationMarker = null;   // marker "Twoja lokalizacja" — tylko jeden na mapie
+
+function placeUserMarker(lat, lng) {
+    // Usuń poprzedni marker lokalizacji jeśli istnieje
+    if (userLocationMarker) {
+        userLocationMarker.remove();
+    }
+    userLocationMarker = L.marker([lat, lng], {
+        icon: L.divIcon({
+            html: `<div style="
+                width:14px; height:14px;
+                background:#4285f4;
+                border:2.5px solid white;
+                border-radius:50%;
+                box-shadow:0 2px 6px rgba(0,0,0,0.4);
+            "></div>`,
+            className: "", iconSize: [14, 14], iconAnchor: [7, 7]
+        })
+    }).addTo(map).bindPopup("Twoja lokalizacja");
+}
+
+function renderPoints(data) {
+    const bounds = [];
+    data.forEach(point => {
+        if (!point.lat || !point.lng) return;
+        const marker = L.marker([point.lat, point.lng], {
+            icon:    createInpostIcon(point.status),
+            _name:   point.name,
+            _status: point.status
+        });
+        marker.bindPopup(buildPopup(point), {
+            maxWidth: 240, className: "inpost-popup"
+        });
+        markersLayer.addLayer(marker);
+        bounds.push([point.lat, point.lng]);
+    });
+    if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
+    return bounds.length;
+}
+
 
 // ══════════════════════════════════════════
-//  MOJA LOKALIZACJA
+//  WYKRYJ MIASTO — auto-uzupełnienie inputa
+// ══════════════════════════════════════════
+
+async function autofillCity() {
+    const status = document.getElementById("status");
+    const btn    = document.getElementById("btn-autofill");
+
+    if (!navigator.geolocation) {
+        status.textContent = "Geolokalizacja niedostępna";
+        return;
+    }
+
+    btn.disabled       = true;
+    status.textContent = "Wykrywam miasto…";
+
+    navigator.geolocation.getCurrentPosition(
+        async ({ coords: { latitude, longitude } }) => {
+            try {
+                const res  = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+                    { headers: { "Accept-Language": "pl" } }
+                );
+                const data = await res.json();
+
+                const city =
+                    data.address?.city    ||
+                    data.address?.town    ||
+                    data.address?.village ||
+                    data.address?.county  ||
+                    "";
+
+                if (city) {
+                    document.getElementById("city-input").value = city;
+                    status.textContent = `Wykryto: ${city}`;
+                    btn.disabled = false;
+                    await fetchPoints();   // ← od razu szuka
+                } else {
+                    status.textContent = "Nie udało się wykryć miasta";
+                    btn.disabled = false;
+                }
+
+            } catch {
+                status.textContent = "Błąd wykrywania miasta";
+                btn.disabled = false;
+            }
+        },
+        () => {
+            status.textContent = "Brak dostępu do lokalizacji";
+            btn.disabled = false;
+        },
+        { timeout: 8000 }
+    );
+}
+
+
+
+// ══════════════════════════════════════════
+//  MOJA LOKALIZACJA — paczkomaty w pobliżu
 // ══════════════════════════════════════════
 
 function useMyLocation() {
     const status = document.getElementById("status");
+
+    if (!navigator.geolocation) {
+        status.textContent = "Geolokalizacja niedostępna";
+        return;
+    }
+
+    markersLayer.clearLayers();
+    allPoints = [];   // ← wyczyść cache
     showLoading("Szukam Twojej lokalizacji…");
 
     navigator.geolocation.getCurrentPosition(
         async ({ coords: { latitude, longitude } }) => {
-            map.setView([latitude, longitude], 13);
+            userCoords = { lat: latitude, lng: longitude };
 
-            L.marker([latitude, longitude], {
-                icon: L.divIcon({
-                    html: `<div style="
-                        width:14px; height:14px;
-                        background:#4285f4;
-                        border:2.5px solid white;
-                        border-radius:50%;
-                        box-shadow:0 2px 6px rgba(0,0,0,0.4);
-                    "></div>`,
-                    className: "", iconSize: [14, 14], iconAnchor: [7, 7]
-                })
-            }).addTo(map).bindPopup("Twoja lokalizacja");
+            map.setView([latitude, longitude], 15);
+            placeUserMarker(latitude, longitude);
+            showLoading("Szukam najbliższych paczkomatów…");
 
             try {
-                const res  = await fetch(`/api/points/?lat=${latitude}&lng=${longitude}`);
-                const data = await res.json();
+                const params = new URLSearchParams({ lat: latitude, lng: longitude });
+                const res    = await fetch(`/api/points/?${params}`);
+                const data   = await res.json();
 
                 hideLoading();
 
-                const bounds = [];
-                data.forEach(point => {
+                if (data.length === 0) {
+                    status.textContent = "Brak punktów w pobliżu";
+                    return;
+                }
+
+                // Backend zwrócił posortowane — weź 3 najbliższe
+                const closest = data.slice(0, 3);
+                allPoints     = closest;   // ← zapisz do cache (tylko te 3)
+
+                const bounds = [[latitude, longitude]];
+
+                closest.forEach(point => {
                     if (!point.lat || !point.lng) return;
                     const marker = L.marker([point.lat, point.lng], {
                         icon:    createInpostIcon(point.status),
@@ -408,19 +579,22 @@ function useMyLocation() {
                     bounds.push([point.lat, point.lng]);
                 });
 
-                if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
-                status.textContent = `Znaleziono ${data.length} punktów w pobliżu`;
+                map.fitBounds(bounds, { padding: [60, 60] });
+                status.textContent = `${closest.length} najbliższe paczkomaty w pobliżu`;
 
             } catch (err) {
                 hideLoading();
-                console.error(err);
+                console.error("[LOCATION] Błąd:", err);
                 status.textContent = "Błąd połączenia";
             }
         },
-        () => {
+        (err) => {
             hideLoading();
-            status.textContent = "Brak dostępu do lokalizacji";
-        }
+            status.textContent = err.code === 1
+                ? "Brak zgody na lokalizację"
+                : "Nie udało się pobrać lokalizacji";
+        },
+        { timeout: 10000 }
     );
 }
 
@@ -435,18 +609,29 @@ async function askAI() {
 
     if (!query) return;
 
-    if (!cityInput) {
-        hideAIThinking("Najpierw wyszukaj miasto.");
+    if (!cityInput && !userCoords) {
+        hideAIThinking("Najpierw wyszukaj miasto lub użyj lokalizacji.");
         return;
     }
 
     showAIThinking();
 
     try {
+        const body = {
+            query,
+            city: cityInput || "",
+        };
+
+        // Dołącz współrzędne jeśli dostępne
+        if (userCoords) {
+            body.lat = userCoords.lat;
+            body.lng = userCoords.lng;
+        }
+
         const res  = await fetch("/api/ai/", {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
-            body:    JSON.stringify({ query, city: cityInput })
+            body:    JSON.stringify(body)
         });
         const data = await res.json();
         console.log("[AI DEBUG]", data);

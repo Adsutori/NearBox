@@ -43,11 +43,16 @@
                 <i data-lucide="search"></i>
                 <span>Szukaj</span>
             </button>
-            <button class="btn btn-ghost" onclick="useMyLocation()">
+            <button class="btn btn-ghost" id="btn-autofill" onclick="autofillCity()" title="Wykryj miasto">
+                <i data-lucide="map-pin"></i>
+                <span>Wykryj miasto</span>
+            </button>
+            <button class="btn btn-ghost" onclick="useMyLocation()" title="Paczkomaty w pobliżu">
                 <i data-lucide="locate-fixed"></i>
-                <span>Moja lokalizacja</span>
+                <span>W pobliżu</span>
             </button>
         </div>
+
 
         <div id="filters">
             <label class="chip">

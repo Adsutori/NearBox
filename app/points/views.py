@@ -5,6 +5,7 @@ from django.views.decorators.http import require_GET
 from .services import get_points_by_city, get_points_by_city_stream, get_points_by_location
 from .ai import recommend
 import json
+import math
 
 
 # ══════════════════════════════════════════
@@ -43,6 +44,10 @@ def simplify_points(points):
             "opening_hours":        p.get("opening_hours"),
             "image_url":            p.get("image_url"),
             "location_description": p.get("location_description"),
+            # ── pola potrzebne do filtrowania client-side ──
+            "type":                 p.get("type", []),
+            "location_type":        p.get("location_type", ""),
+            "easy_access_zone":     p.get("easy_access_zone", False),
         })
     return simplified
 
@@ -61,6 +66,16 @@ def get_filters_from_request(request):
 #  WIDOKI
 # ══════════════════════════════════════════
 
+def _haversine(lat1, lng1, lat2, lng2) -> float:
+    R    = 6371
+    dlat = math.radians(float(lat2) - float(lat1))
+    dlng = math.radians(float(lng2) - float(lng1))
+    a    = (math.sin(dlat / 2) ** 2 +
+            math.cos(math.radians(float(lat1))) *
+            math.cos(math.radians(float(lat2))) *
+            math.sin(dlng / 2) ** 2)
+    return R * 2 * math.asin(math.sqrt(a))
+
 def points_view(request):
     city = request.GET.get("city", "")
     lat  = request.GET.get("lat")
@@ -73,8 +88,21 @@ def points_view(request):
 
     filters = get_filters_from_request(request)
     points  = filter_points(points, filters)
+    result  = simplify_points(points)
 
-    return JsonResponse(simplify_points(points), safe=False)
+    # Sortuj po odległości od usera — żeby slice(0,3) dało naprawdę najbliższe
+    if lat and lng:
+        ref_lat, ref_lng = float(lat), float(lng)
+
+        def dist(p):
+            if not p.get("lat") or not p.get("lng"):
+                return 9999
+            return _haversine(ref_lat, ref_lng, p["lat"], p["lng"])
+
+        result.sort(key=dist)
+        print(f"[VIEW] Posortowano {len(result)} punktów. Top 3: {[p['name'] for p in result[:3]]}", flush=True)
+
+    return JsonResponse(result, safe=False)
 
 
 @require_GET
@@ -112,7 +140,7 @@ def points_stream_view(request):
             "page":        1,
             "total_pages": 1,
             "done":        True,
-            "points":      simplify_points(filtered),
+            "points":      simplify_points(last_points),
         })
         yield f"data: {final}\n\n"
 
@@ -133,12 +161,21 @@ def ai_recommend_view(request):
     body       = json.loads(request.body)
     user_query = body.get("query", "")
     city       = body.get("city", "")
+    lat        = body.get("lat")
+    lng        = body.get("lng")
 
-    if not user_query or not city:
-        return JsonResponse({"error": "Brak query lub city"}, status=400)
+    if not user_query:
+        return JsonResponse({"error": "Brak query"}, status=400)
 
-    points   = get_points_by_city(city)
-    data     = simplify_points(points)
-    response = recommend(user_query, data, city)
+    # Pobierz punkty — po lokalizacji lub po mieście
+    if lat and lng:
+        points = get_points_by_location(float(lat), float(lng))
+    elif city:
+        points = get_points_by_city(city)
+    else:
+        return JsonResponse({"error": "Brak city lub lokalizacji"}, status=400)
 
+    data = simplify_points(points)
+
+    response = recommend(user_query, data, city, lat=lat, lng=lng)
     return JsonResponse({"recommendation": response})

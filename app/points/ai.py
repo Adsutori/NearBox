@@ -17,11 +17,15 @@ Jesteś moderatorem zapytań dla aplikacji NearBox — aplikacji do znajdowania 
 
 Twoim zadaniem jest sklasyfikować zapytanie użytkownika do jednej z kategorii:
 
-1. ON_TOPIC       — zapytanie dotyczy szukania paczkomatu blisko jakiegoś miejsca/obiektu
-                    Przykłady: "paczkomat blisko PKP", "paczkomat obok Lidla", 
-                    "paczkomat przy ul. Królewskiej", "najbliższy paczkomat centrum"
+1. ON_TOPIC       — zapytanie dotyczy szukania paczkomatu blisko jakiegoś miejsca/obiektu,
+                    LUB użytkownik pyta o paczkomat blisko siebie / swojej lokalizacji
+                    Przykłady: "paczkomat blisko PKP", "paczkomat obok Lidla",
+                    "paczkomat przy ul. Królewskiej", "najbliższy paczkomat centrum",
+                    "paczkomat blisko mnie", "najbliższy paczkomat", "co jest obok mnie",
+                    "znajdź paczkomat w pobliżu", "paczkomat niedaleko mnie"
 
 2. TOO_VAGUE      — zapytanie jest o paczkomat, ale nie podaje żadnego miejsca odniesienia
+                    i NIE sugeruje lokalizacji użytkownika
                     Przykłady: "daj mi paczkomat", "pokaż jakiś paczkomat", "dowolny"
 
 3. OFF_TOPIC      — zapytanie jest kompletnie nie na temat paczkomatów
@@ -33,7 +37,6 @@ Twoim zadaniem jest sklasyfikować zapytanie użytkownika do jednej z kategorii:
 Odpowiedz WYŁĄCZNIE jednym słowem: ON_TOPIC, TOO_VAGUE, OFF_TOPIC lub OFFENSIVE.
 Żadnego dodatkowego tekstu.
 """.strip()
-
 
 EASTER_EGG_SYSTEM_PROMPT = """
 Jesteś zabawnym asystentem aplikacji NearBox do znajdowania paczkomatów InPost.
@@ -295,7 +298,7 @@ def _sort_by_location(
 #  GŁÓWNA FUNKCJA
 # ─────────────────────────────────────────────
 
-def recommend(user_query: str, points: list, city: str = "") -> str:
+def recommend(user_query: str, points: list, city: str = "", lat=None, lng=None) -> str:
     client = OpenAI()
 
     # ── KROK 0: Klasyfikacja zapytania ──────────────────────────
@@ -309,25 +312,53 @@ def recommend(user_query: str, points: list, city: str = "") -> str:
         return _generate_easter_egg(user_query, client)
 
     if intent == "TOO_VAGUE":
-        return TOO_VAGUE_RESPONSE
+        # Jeśli mamy lokalizację usera — traktuj jak ON_TOPIC
+        if not (lat and lng):
+            return TOO_VAGUE_RESPONSE
 
-    # ── ON_TOPIC: normalna ścieżka ───────────────────────────────
-    sorted_points, coords, is_precise = _sort_by_location(
-        user_query, points, city, client
+    # ── Sprawdź czy zapytanie dotyczy lokalizacji usera ──────────
+    USER_LOCATION_PHRASES = (
+        "blisko mnie", "obok mnie", "w pobliżu mnie", "niedaleko mnie",
+        "najbliższy", "najbliżej mnie", "przy mnie", "koło mnie",
+        "w moim pobliżu", "gdzie jestem", "moja okolica",
+    )
+    is_user_location_query = any(
+        phrase in user_query.lower() for phrase in USER_LOCATION_PHRASES
     )
 
-    print(f"\n{'='*50}", flush=True)
-    print(f"[DEBUG] query      = '{user_query}'", flush=True)
-    print(f"[DEBUG] city       = '{city}'", flush=True)
-    print(f"[DEBUG] intent     = '{intent}'", flush=True)
-    print(f"[DEBUG] coords     = {coords}", flush=True)
-    print(f"[DEBUG] is_precise = {is_precise}", flush=True)
-    print(f"[DEBUG] top5 dists = {[round(p.get('_dist', 9999), 2) for p in sorted_points[:5]]}", flush=True)
-    print(f"[DEBUG] top5 names = {[p.get('name') for p in sorted_points[:5]]}", flush=True)
-    print(f"{'='*50}\n", flush=True)
+    # ── KROK 1-3: Sortowanie ────────────────────────────────────
+    if is_user_location_query and lat and lng:
+        # Sortuj bezpośrednio po współrzędnych usera — bez geocodingu
+        ref_lat, ref_lng = float(lat), float(lng)
+        for p in points:
+            p_lat = p.get("lat")
+            p_lng = p.get("lng")
+            p["_dist"] = (
+                _distance_km(ref_lat, ref_lng, float(p_lat), float(p_lng))
+                if p_lat and p_lng else 9999
+            )
+        sorted_points = sorted(points, key=lambda p: p["_dist"])
+        coords        = (ref_lat, ref_lng)
+        is_precise    = True   # mamy dokładne GPS — nie pokazuj ostrzeżenia
+        print(f"[AI] Tryb: lokalizacja usera ({ref_lat:.5f}, {ref_lng:.5f})", flush=True)
 
-    top_points   = sorted_points[:5]
-    points_text  = "\n".join([
+    else:
+        sorted_points, coords, is_precise = _sort_by_location(
+            user_query, points, city, client
+        )
+
+    # print(f"\n{'='*50}", flush=True)
+    # print(f"[DEBUG] query      = '{user_query}'", flush=True)
+    # print(f"[DEBUG] city       = '{city}'", flush=True)
+    # print(f"[DEBUG] intent     = '{intent}'", flush=True)
+    # print(f"[DEBUG] coords     = {coords}", flush=True)
+    # print(f"[DEBUG] is_precise = {is_precise}", flush=True)
+    # print(f"[DEBUG] top5 dists = {[round(p.get('_dist', 9999), 2) for p in sorted_points[:5]]}", flush=True)
+    # print(f"[DEBUG] top5 names = {[p.get('name') for p in sorted_points[:5]]}", flush=True)
+    # print(f"{'='*50}\n", flush=True)
+
+    top_points  = sorted_points[:5]
+    points_text = "\n".join([
         f"- {p['name']} | {p['address']} | "
         f"status: {p['status']} | godziny: {p.get('opening_hours', '?')} | "
         f"odległość: {p.get('_dist', 9999):.2f} km"
@@ -342,6 +373,14 @@ def recommend(user_query: str, points: list, city: str = "") -> str:
         else ""
     )
 
+    # Kontekst lokalizacji usera dla GPT
+    location_note = (
+        f"Użytkownik znajduje się na współrzędnych ({float(lat):.5f}, {float(lng):.5f}). "
+        "Paczkomaty są posortowane od najbliższego jego lokalizacji."
+        if lat and lng and is_user_location_query
+        else ""
+    )
+
     messages = [
         {
             "role": "system",
@@ -352,6 +391,7 @@ def recommend(user_query: str, points: list, city: str = "") -> str:
                 "Bądź konkretny i zwięzły — maksymalnie 3-4 zdania. "
                 "Opieraj się WYŁĄCZNIE na danych z listy paczkomatów — "
                 "nie wymyślaj lokalizacji ani odległości. "
+                f"{location_note} "
                 f"{geocode_note}"
             )
         },
